@@ -221,7 +221,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier id: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         let item = NSCustomTouchBarItem(identifier: id)
         if id == Self.closeID || id == Self.overlayCloseID {
-            let v = CloseView()
+            let v = CloseView(symbol: id == Self.closeID ? "chevron.left" : "xmark")
             v.onTap = { [weak self] _ in id == Self.closeID ? self?.hide() : self?.closeOverlay() }
             item.view = v
             return item

@@ -68,7 +68,7 @@ enum Snapshot {
         let sliderCanvas = Canvas(frame: canvas.frame)
         let slider = SliderView(kind: .volume, width: 900)
         slider.value = 0.45
-        layout([CloseView()], in: sliderCanvas, inset: inset, barWidth: barWidth)
+        layout([CloseView(symbol: "xmark")], in: sliderCanvas, inset: inset, barWidth: barWidth)
         slider.frame = NSRect(x: inset + 30 + 8, y: inset, width: slider.fixedWidth, height: Theme.height)
         sliderCanvas.addSubview(slider)
         let sliderPath = (path as NSString).deletingPathExtension + "-slider.png"
@@ -76,7 +76,7 @@ enum Snapshot {
 
         // Panel semua pintasan.
         let panelCanvas = Canvas(frame: canvas.frame)
-        layout([CloseView()], in: panelCanvas, inset: inset, barWidth: barWidth)
+        layout([CloseView(symbol: "xmark")], in: panelCanvas, inset: inset, barWidth: barWidth)
         let panel = ShortcutPanelView(actions: BuiltinAction.allCases.filter { $0 != .inputSource }.map { .builtin($0) },
                                       width: barWidth - 38)
         panel.states = demoStates

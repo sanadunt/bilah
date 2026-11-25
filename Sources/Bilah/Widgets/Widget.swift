@@ -76,12 +76,19 @@ extension Widget {
 }
 
 /// Tombol kecil di kiri untuk mengecilkan dashboard kembali ke Touch Bar biasa.
+/// Tombol kecil di kiri: "‹" mengecilkan dashboard, "×" menutup slider/panel.
 final class CloseView: WidgetView {
-    init() { super.init(width: 30) }
+    private let symbol: String
+
+    init(symbol: String = "chevron.left") {
+        self.symbol = symbol
+        super.init(width: 30)
+    }
+
     required init?(coder: NSCoder) { fatalError() }
 
     override func drawContent(_ b: NSRect) {
-        Draw.symbol("chevron.left", size: 11, weight: .bold, color: Theme.secondary, center: NSPoint(x: b.midX, y: b.midY))
+        Draw.symbol(symbol, size: 11, weight: .bold, color: Theme.secondary, center: NSPoint(x: b.midX, y: b.midY))
     }
 }
 
