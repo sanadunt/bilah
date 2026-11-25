@@ -2,7 +2,7 @@ import AppKit
 
 enum WidgetKind: String, CaseIterable, Codable, Identifiable {
     case claude, nowPlaying, system, pomodoro, clock, controls, pet
-    case prayer, calendar, weather, network, clipboard, badges
+    case prayer, calendar, weather, network, clipboard, badges, dock
 
     var id: String { rawValue }
 
@@ -24,6 +24,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .network: "Kecepatan internet"
         case .clipboard: "Riwayat clipboard"
         case .badges: "Badge aplikasi"
+        case .dock: "Dock"
         }
     }
 
@@ -42,6 +43,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .network: "arrow.up.arrow.down"
         case .clipboard: "doc.on.clipboard"
         case .badges: "app.badge"
+        case .dock: "dock.rectangle"
         }
     }
 
@@ -61,6 +63,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .network: "Internet"
         case .clipboard: "Clipboard"
         case .badges: "Badge"
+        case .dock: "Dock"
         }
     }
 
@@ -79,6 +82,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .network: "Kecepatan unduh dan unggah saat ini."
         case .clipboard: "Teks yang baru disalin; ketuk untuk menempelkannya lagi."
         case .badges: "Aplikasi yang punya notifikasi belum dibaca (dari badge di Dock)."
+        case .dock: "Salinan Dock: ketuk ikon untuk membuka aplikasinya. Urutan & ukuran ikon bisa diatur."
         }
     }
 
@@ -97,6 +101,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .network: Theme.violet
         case .clipboard: Theme.secondary
         case .badges: Theme.red
+        case .dock: Theme.blue
         }
     }
 

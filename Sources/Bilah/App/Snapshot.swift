@@ -167,6 +167,25 @@ enum Snapshot {
         add(BarContainerView(leading: CloseView(), content: fillStrip, width: barWidth), to: fillCanvas, inset: inset)
         render(fillCanvas, to: (path as NSString).deletingPathExtension + "-fill.png")
 
+        // Widget Dock: tiga ukuran ikon, dan yang kebanyakan aplikasi (+N).
+        let dockCanvas = Canvas(frame: canvas.frame)
+        let dockApps: [DockApp] = ["Finder", "Safari", "Mail", "Messages", "Notes", "Calendar", "Music", "Photos",
+                                   "System Settings", "App Store", "Maps", "Reminders", "TextEdit", "Preview"]
+            .enumerated().compactMap { i, name in
+                let url = URL(fileURLWithPath: name == "Finder" ? "/System/Library/CoreServices/Finder.app"
+                              : (name == "System Settings" || name == "App Store" || name == "Safari" ? "/Applications/\(name).app"
+                                 : "/System/Applications/\(name).app"))
+                return DockApp(bundleID: nil, name: name, url: url, running: i % 3 == 0, badge: i == 2 ? "4" : (i == 3 ? "12" : nil))
+            }
+        let dockViews: [WidgetView] = DockIconSize.allCases.map { size in
+            let v = DockView(iconSize: size)
+            v.apps = Array(dockApps.prefix(6))
+            return v
+        } + [{ let v = DockView(iconSize: .medium); v.apps = dockApps; return v }()]
+        let dockStrip = DashboardStripView(widgets: dockViews)
+        add(BarContainerView(leading: CloseView(), content: dockStrip, width: barWidth), to: dockCanvas, inset: inset)
+        render(dockCanvas, to: (path as NSString).deletingPathExtension + "-dock.png")
+
         // Mode slider volume.
         let sliderCanvas = Canvas(frame: canvas.frame)
         let slider = SliderView(kind: .volume, width: barWidth)
@@ -300,6 +319,8 @@ extension Snapshot {
         }
         guard let sidebar = find(root, NSOutlineView.self).min(by: { root.convert($0.bounds, from: $0).minX < root.convert($1.bounds, from: $1).minX })
         else { return "sidebar tidak ketemu" }
+        // Sidebar kosong juga gagal: dulu barisnya hilang dan cek posisi lolos karena tidak ada yang dicek.
+        if sidebar.numberOfRows < Page.allCases.count { return "sidebar cuma \(sidebar.numberOfRows) baris" }
         for r in 0..<sidebar.numberOfRows {
             let rect = root.convert(sidebar.rect(ofRow: r), from: sidebar)
             if rect.minX < -1 || rect.minY < -1 || rect.maxY > content.height + 1 {

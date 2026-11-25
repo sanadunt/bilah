@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case layout, shortcuts, music, pets, info, focus, claude, appearance, permissions, updates, about
+    case layout, shortcuts, music, dock, pets, info, focus, claude, appearance, permissions, updates, about
 
     var id: String { rawValue }
 
@@ -14,7 +14,7 @@ enum Page: String, CaseIterable, Identifiable {
     var group: Group {
         switch self {
         case .layout, .shortcuts: .touchBar
-        case .music, .pets, .info, .focus, .claude: .widgets
+        case .music, .dock, .pets, .info, .focus, .claude: .widgets
         case .appearance, .permissions, .updates, .about: .app
         }
     }
@@ -24,6 +24,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .layout: "Tata letak"
         case .shortcuts: "Pintasan"
         case .music: "Musik"
+        case .dock: "Dock"
         case .pets: "Peliharaan & Game"
         case .info: "Info & Lokasi"
         case .focus: "Fokus"
@@ -40,6 +41,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .layout: "rectangle.3.group.fill"
         case .shortcuts: "square.grid.2x2.fill"
         case .music: "music.note"
+        case .dock: "dock.rectangle"
         case .pets: "pawprint.fill"
         case .info: "location.fill"
         case .focus: "timer"
@@ -56,6 +58,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .layout: .blue
         case .shortcuts: .indigo
         case .music: .pink
+        case .dock: .cyan
         case .pets: .orange
         case .info: .green
         case .focus: .red
@@ -168,6 +171,7 @@ struct MainView: View {
         case .layout: LayoutPage(store: store, dashboard: dashboard, editor: editor)
         case .shortcuts: ShortcutsPage(store: store)
         case .music: MusicPage(store: store, music: dashboard.music)
+        case .dock: DockPage(store: store)
         case .pets: PetsPage(store: store, dashboard: dashboard)
         case .info: InfoPage(store: store, clipboard: dashboard.clipboard)
         case .focus: FocusPage(store: store)
@@ -634,6 +638,46 @@ private struct CommandSheet: View {
         }
         .padding(20)
         .frame(width: 480)
+    }
+}
+
+// MARK: Dock
+
+private struct DockPage: View {
+    @ObservedObject var store: SettingsStore
+
+    var body: some View {
+        PageScaffold(title: "Dock",
+                     subtitle: "Salinan Dock di Touch Bar sebagai widget. Ketuk ikon untuk membuka aplikasinya. Lebarnya diatur lewat Atur tata letak: makin lebar, makin banyak ikon yang muat; sisanya lewat tombol +N.") {
+            Form {
+                Section("Urutan") {
+                    Picker("Urutkan", selection: $store.dockOrder) {
+                        ForEach(DockOrder.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.radioGroup)
+                    .labelsHidden()
+                }
+                Section("Tampilan") {
+                    Picker("Ukuran ikon", selection: $store.dockIconSize) {
+                        ForEach(DockIconSize.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    Toggle("Titik di bawah aplikasi yang sedang jalan", isOn: $store.dockShowRunning)
+                    Toggle("Badge notifikasi belum dibaca", isOn: $store.dockShowBadges)
+                }
+                Section {
+                    Label(SystemActions.hasAccessibility
+                          ? "Urutan dibaca langsung dari Dock (izin Aksesibilitas sudah ada)."
+                          : "Tanpa izin Aksesibilitas: aplikasi yang di-pin di Dock + yang sedang jalan, tanpa badge.",
+                          systemImage: SystemActions.hasAccessibility ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(SystemActions.hasAccessibility ? .green : .orange)
+                } footer: {
+                    Text("Widget Dock belum aktif? Nyalakan di Tata letak › Widget di halaman ini.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+        }
     }
 }
 

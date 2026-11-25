@@ -39,10 +39,10 @@ final class ClaudeWidget: Widget {
     /// Ketuk sesi = buka aplikasi tempat sesi itu berjalan. Tanpa info aplikasi: pindah ke sesi berikutnya.
     private func openFocused() {
         guard let s = sessions.first(where: { $0.id == focusID }) ?? sessions.first else { return }
-        if let pid = s.appPID, let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated {
-            app.activate()
-        } else if let id = s.appBundle, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
-            NSWorkspace.shared.openApplication(at: url, configuration: .init())
+        if let pid = s.appPID {
+            AppLauncher.open(pid: pid, fallbackBundleID: s.appBundle)
+        } else if let id = s.appBundle {
+            AppLauncher.open(bundleID: id)
         } else {
             cycle()
         }

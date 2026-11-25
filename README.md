@@ -12,6 +12,7 @@ Dashboard Touch Bar untuk MacBook Pro. Tampil di semua aplikasi, bukan cuma saat
 | Pomodoro | Fokus → istirahat otomatis | Mulai / jeda / lanjut; ↺ untuk reset saat dijeda |
 | Jam | Jam dan tanggal | – |
 | Peliharaan | Anjing dan kucing animasi: jalan, lari, duduk, tidur, joget saat musik diputar, kadang kejar-kejaran | Ketuk peliharaan untuk mengelus (❤ + namanya muncul); ketuk tempat kosong untuk memanggilnya |
+| Dock | Salinan Dock: ikon aplikasi, titik yang sedang jalan, badge notifikasi. Urutan: sesuai Dock, terakhir dibuka, yang sedang jalan, atau abjad. Ukuran ikon kecil/sedang/besar | Buka aplikasinya; +N untuk halaman ikon berikutnya |
 | Pintasan cepat | Tombol favorit yang kamu pin (default: kecerahan, volume, screenshot, notifikasi) | Jalankan pintasan; ⊞ membuka panel semua pintasan |
 
 ## Halaman Info
@@ -87,7 +88,7 @@ Buka Bilah (Launchpad, Finder, atau menu bar › **Buka Bilah…**) untuk membuk
 | Kelompok | Halaman |
 |---|---|
 | Touch Bar | **Tata letak**: preview langsung (bisa diklik dan digeser), Atur tata letak, widget per halaman, halaman, dan profil per aplikasi · **Pintasan** |
-| Widget | **Musik** · **Peliharaan & Game** · **Info & Lokasi** · **Fokus** (Pomodoro + pengingat istirahat) · **Claude Code** |
+| Widget | **Musik** · **Dock** · **Peliharaan & Game** · **Info & Lokasi** · **Fokus** (Pomodoro + pengingat istirahat) · **Claude Code** |
 | Aplikasi | **Tampilan** (tema, perilaku Touch Bar, login) · **Izin** · **Update** · **Tentang** |
 
 Tombol **Tampilkan/Sembunyikan di Touch Bar** dan pemberitahuan update ada di toolbar. Selama jendela terbuka, Bilah muncul di Dock; begitu ditutup, Bilah kembali ke menu bar dan Touch Bar saja. Kalau dibuka otomatis saat login, jendelanya tidak muncul.
@@ -118,10 +119,16 @@ Setelah 50 menit kerja tanpa jeda (bisa diatur di Umum), Touch Bar mengingatkan 
 
 ![Pengingat istirahat](docs/preview-rest.png)
 
+## Dock
+
+![Dock](docs/preview-dock.png)
+
+Widget **Dock** menyalin isi Dock ke Touch Bar. Atur urutan, ukuran ikon, titik aplikasi yang sedang jalan, dan badge di jendela Bilah › **Dock**. Lebarnya diatur lewat Atur tata letak: makin lebar, makin banyak ikon yang muat, sisanya lewat tombol **+N**. Widget ini mati secara default di halaman yang sudah ada; nyalakan di **Tata letak**. Urutan Dock dan badge dibaca lewat izin Aksesibilitas; tanpa izin itu, Bilah memakai daftar app di Dock dari pengaturan macOS ditambah app yang sedang jalan.
+
 ## Izin
 
 - **Automation (Spotify/Music)**: ditanyakan saat widget Musik pertama kali membaca lagu.
-- **Aksesibilitas**: untuk tombol media, Spotlight, emoji, Notification Center, dan Control Center. Bilah mengirim tombol keyboard/media atau "mengklik" menu bar lewat Accessibility API.
+- **Aksesibilitas**: untuk tombol media, urutan dan badge widget Dock, Spotlight, emoji, Notification Center, dan Control Center. Bilah mengirim tombol keyboard/media atau "mengklik" menu bar lewat Accessibility API.
 
 Karena tiap rilis ditandatangani sertifikat yang sama, izin yang sudah diberikan tetap ada setelah update.
 

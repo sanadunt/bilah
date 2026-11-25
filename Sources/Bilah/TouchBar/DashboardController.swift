@@ -68,6 +68,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             .network: NetworkWidget(),
             .clipboard: clipboard,
             .badges: BadgesWidget(),
+            .dock: DockWidget(settings: settings),
         ]
         super.init()
         runner.onOpenSlider = { [weak self] kind in self?.openOverlay(.slider(kind)) }

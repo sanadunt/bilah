@@ -60,7 +60,7 @@ final class NowPlayingWidget: Widget {
             case .next: music.send(.next, to: t.bundleID)
             case .prev: music.send(.previous, to: t.bundleID)
             case .info:
-                NSRunningApplication.runningApplications(withBundleIdentifier: t.bundleID).first?.activate()
+                AppLauncher.open(bundleID: t.bundleID)
             }
         case .idle(let id, _):
             music.open(id, play: zone == .toggle)

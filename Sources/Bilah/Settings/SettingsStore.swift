@@ -44,6 +44,11 @@ final class SettingsStore: ObservableObject {
     /// Pengingat istirahat setelah `restInterval` menit kerja tanpa jeda.
     @Published var restReminder: Bool { didSet { defaults.set(restReminder, forKey: "restReminder") } }
     @Published var restInterval: Int { didSet { defaults.set(restInterval, forKey: "restInterval") } }
+    /// Widget Dock: urutan, ukuran ikon, titik "sedang jalan", dan badge notifikasi.
+    @Published var dockOrder: DockOrder { didSet { defaults.set(dockOrder.rawValue, forKey: "dockOrder") } }
+    @Published var dockIconSize: DockIconSize { didSet { defaults.set(dockIconSize.rawValue, forKey: "dockIconSize") } }
+    @Published var dockShowRunning: Bool { didSet { defaults.set(dockShowRunning, forKey: "dockShowRunning") } }
+    @Published var dockShowBadges: Bool { didSet { defaults.set(dockShowBadges, forKey: "dockShowBadges") } }
     /// Kota untuk jadwal sholat dan cuaca.
     @Published var location: CityLocation {
         didSet { defaults.set(try? JSONEncoder().encode(location), forKey: "location") }
@@ -79,6 +84,10 @@ final class SettingsStore: ObservableObject {
         petCompact = defaults.object(forKey: "petCompact") as? Bool ?? false
         restReminder = defaults.object(forKey: "restReminder") as? Bool ?? true
         restInterval = defaults.object(forKey: "restInterval") as? Int ?? 50
+        dockOrder = defaults.string(forKey: "dockOrder").flatMap(DockOrder.init(rawValue:)) ?? .dock
+        dockIconSize = defaults.string(forKey: "dockIconSize").flatMap(DockIconSize.init(rawValue:)) ?? .medium
+        dockShowRunning = defaults.object(forKey: "dockShowRunning") as? Bool ?? true
+        dockShowBadges = defaults.object(forKey: "dockShowBadges") as? Bool ?? true
         location = defaults.data(forKey: "location").flatMap { try? JSONDecoder().decode(CityLocation.self, from: $0) }
             ?? CityLocation.presets[0]
         shortcuts = Self.loadShortcuts(defaults)
@@ -208,7 +217,7 @@ final class SettingsStore: ObservableObject {
             + pinnedActions.map(\.id).joined(separator: ",")
             + "|" + widgetWidths.sorted { $0.key < $1.key }.map { "\($0.key)=\(Int($0.value))" }.joined(separator: ",")
             + "|\(spacing.rawValue)|pet=\(petCompact ? "kotak" : "lebar")x\(pets.count)"
-            + "|tema=\(pillStyle.rawValue)-\(accent.rawValue)"
+            + "|tema=\(pillStyle.rawValue)-\(accent.rawValue)|dock=\(dockIconSize.rawValue)"
     }
 
     func isEnabled(_ kind: WidgetKind) -> Bool { !disabled.contains(kind) }
