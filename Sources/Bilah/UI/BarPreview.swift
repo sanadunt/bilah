@@ -1,35 +1,13 @@
 import AppKit
 import SwiftUI
 
-/// Meniru cara NSTouchBar menata item: buang prioritas terendah sampai muat, sisa ruang dibagi rata.
 enum BarLayout {
     static let width: CGFloat = 1085
     static let controlStripWidth: CGFloat = 180
     static let closeGap: CGFloat = 8
-    static let minGap: CGFloat = 6
-
-    static func fit(_ items: [(view: WidgetView, priority: NSTouchBarItem.Priority)],
-                    available: CGFloat) -> [WidgetView] {
-        var items = items
-        while items.reduce(0, { $0 + $1.view.fixedWidth }) + minGap * CGFloat(max(0, items.count - 1)) > available,
-              let drop = items.indices.min(by: { items[$0].priority.rawValue < items[$1].priority.rawValue }) {
-            items.remove(at: drop)
-        }
-        return items.map(\.view)
-    }
-
-    static func place(_ views: [WidgetView], from x0: CGFloat, to x1: CGFloat, y: CGFloat) {
-        let used = views.reduce(0) { $0 + $1.fixedWidth }
-        let gap = views.count > 1 ? (x1 - x0 - used) / CGFloat(views.count - 1) : 0
-        var x = x0
-        for v in views {
-            v.frame = NSRect(x: x, y: y, width: v.fixedWidth, height: Theme.height)
-            x += v.fixedWidth + gap
-        }
-    }
 }
 
-/// Touch Bar tiruan berisi view widget asli (data live, bisa diklik).
+/// Touch Bar tiruan berisi strip dashboard yang sama persis dengan di Touch Bar (data live, bisa diklik dan digeser).
 final class BarPreviewView: NSView {
     static let inset: CGFloat = 14
     static let size = NSSize(width: BarLayout.width + inset * 2, height: Theme.height + inset * 2)
@@ -66,10 +44,9 @@ final class BarPreviewView: NSView {
 
         let start = Self.inset + close.fixedWidth + BarLayout.closeGap
         let end = Self.inset + BarLayout.width - (showsControlStrip ? BarLayout.controlStripWidth + BarLayout.closeGap : 0)
-        let items = settings.visibleWidgets.map { (view: dashboard.makePreviewView($0), priority: $0.priority) }
-        let shown = BarLayout.fit(items, available: end - start)
-        BarLayout.place(shown, from: start, to: end, y: Self.inset)
-        shown.forEach(addSubview)
+        let strip = DashboardStripView(widgets: settings.visibleWidgets.map(dashboard.makePreviewView))
+        strip.frame = NSRect(x: start, y: Self.inset, width: end - start, height: Theme.height)
+        addSubview(strip)
         needsDisplay = true
     }
 }

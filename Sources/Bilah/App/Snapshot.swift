@@ -45,23 +45,17 @@ enum Snapshot {
         let pomodoro = PomodoroView()
         pomodoro.display = PomodoroDisplay(phase: .focus, state: .running, remaining: 18 * 60 + 42, total: 25 * 60)
 
-        let controls = ControlsView(actions: [.builtin(.brightness), .builtin(.volume), .builtin(.screenshot),
-                                              .builtin(.notificationCenter)])
+        let controls = ControlsView(actions: [.builtin(.brightness), .builtin(.keyboardBrightness), .builtin(.nightShift),
+                                              .builtin(.volume), .builtin(.screenshot), .builtin(.notificationCenter)])
         controls.states = demoStates
 
-        // Urutan default + prioritas: kalau kepenuhan, yang prioritasnya paling rendah (jam) hilang duluan.
-        var views: [(WidgetView, NSTouchBarItem.Priority)] = [
-            (claude, .high), (music, .normal), (system, .normal), (pomodoro, .high), (ClockView(), .low),
-            (controls, .normal),
-        ]
+        // Strip yang sama dengan di Touch Bar: kalau sempit, Claude dan Musik menyusut dulu, lalu bisa digeser.
         let close = CloseView()
-        let available = barWidth - close.fixedWidth - 8
-        while views.reduce(0, { $0 + $1.0.fixedWidth }) + 6 * CGFloat(views.count - 1) > available,
-              let drop = views.indices.min(by: { views[$0].1.rawValue < views[$1].1.rawValue }) {
-            views.remove(at: drop)
-        }
         layout([close], in: canvas, inset: inset, barWidth: barWidth)
-        layout(views.map(\.0), startX: inset + close.fixedWidth + 8, in: canvas, inset: inset, barWidth: barWidth)
+        let strip = DashboardStripView(widgets: [claude, music, system, pomodoro, ClockView(), controls])
+        let start = inset + close.fixedWidth + BarLayout.closeGap
+        strip.frame = NSRect(x: start, y: inset, width: inset + barWidth - start, height: Theme.height)
+        canvas.addSubview(strip)
         render(canvas, to: path)
 
         // Mode slider volume.

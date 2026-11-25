@@ -5,6 +5,7 @@ import Combine
 final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject {
     static let trayID = NSTouchBarItem.Identifier("local.bilah.tray")
     static let closeID = NSTouchBarItem.Identifier("local.bilah.close")
+    static let stripID = NSTouchBarItem.Identifier("local.bilah.strip")
     static let overlayCloseID = NSTouchBarItem.Identifier("local.bilah.overlay.close")
     static let sliderID = NSTouchBarItem.Identifier("local.bilah.slider")
     static let panelID = NSTouchBarItem.Identifier("local.bilah.panel")
@@ -119,12 +120,8 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private func rebuild() {
         let tb = NSTouchBar()
         tb.delegate = self
-        var ids: [NSTouchBarItem.Identifier] = [Self.closeID]
-        for (i, kind) in settings.visibleWidgets.enumerated() {
-            ids.append(i == 0 ? .fixedSpaceSmall : .flexibleSpace)
-            ids.append(kind.identifier)
-        }
-        tb.defaultItemIdentifiers = ids
+        // Satu item strip berisi semua widget: lebarnya mengikuti ruang, jadi macOS tidak menyembunyikan apa pun.
+        tb.defaultItemIdentifiers = [Self.closeID, .fixedSpaceSmall, Self.stripID]
         touchBar = tb
         layoutSignature = settings.layoutSignature
     }
@@ -236,11 +233,17 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             item.visibilityPriority = .high
             return item
         }
-        guard let kind = WidgetKind.allCases.first(where: { $0.identifier == id }), let widget = widgets[kind] else {
-            return nil
-        }
-        item.view = widget.makeView()
-        item.visibilityPriority = kind.priority
+        guard id == Self.stripID else { return nil }
+        let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap { widgets[$0]?.makeView() })
+        strip.onLayout = { available, content in LayoutReport.write(available: available, content: content) }
+        // Minta selebar mungkin, tapi boleh dipadatkan sampai 240 pt: Touch Bar yang menentukan lebar akhirnya.
+        let preferred = strip.widthAnchor.constraint(equalToConstant: BarLayout.width)
+        preferred.priority = .defaultLow
+        NSLayoutConstraint.activate([preferred, strip.widthAnchor.constraint(greaterThanOrEqualToConstant: 240)])
+        strip.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        strip.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        item.view = strip
+        item.visibilityPriority = .high
         return item
     }
 
@@ -273,5 +276,24 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         if let old = touchBar { PrivateTouchBar.dismiss(old) }
         rebuild()
         if wasShown { show() } else { PrivateTouchBar.setControlStripPresence(Self.trayID, true) }
+    }
+}
+
+/// Catatan kecil lebar strip yang benar-benar diberikan Touch Bar, untuk diagnosis
+/// (~/Library/Application Support/Bilah/layout.json).
+enum LayoutReport {
+    static func write(available: CGFloat, content: CGFloat) {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Bilah", isDirectory: true)
+        let report: [String: Any] = [
+            "version": Updater.currentVersion,
+            "stripWidth": Double(available),
+            "contentWidth": Double(content),
+            "scrollable": content > available + 0.5,
+            "updated": ISO8601DateFormatter().string(from: Date()),
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) else { return }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? data.write(to: dir.appendingPathComponent("layout.json"), options: .atomic)
     }
 }

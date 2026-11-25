@@ -165,7 +165,7 @@ final class NowPlayingView: WidgetView {
 
     override var highlightsWhole: Bool { false }
 
-    init() { super.init(width: 268) }
+    init() { super.init(width: 268, minWidth: 206) }
     required init?(coder: NSCoder) { fatalError() }
 
     private var controlsX: CGFloat { bounds.width - Self.zoneWidth * 3 - 4 }

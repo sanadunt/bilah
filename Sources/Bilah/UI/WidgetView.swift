@@ -6,6 +6,8 @@ class WidgetView: NSView {
     var onTap: ((NSPoint) -> Void)?
     private(set) var pressPoint: NSPoint?
     let fixedWidth: CGFloat
+    /// Lebar terkecil yang masih enak dibaca; dashboard boleh menyusutkan widget sampai sini kalau sempit.
+    let minWidth: CGFloat
 
     /// true = seluruh kapsul menyala saat ditekan. Widget dengan beberapa zona tombol menggambar sorotannya sendiri.
     var highlightsWhole: Bool { true }
@@ -14,8 +16,9 @@ class WidgetView: NSView {
         didSet { if animating != oldValue { Animator.shared.set(self, animating: animating) } }
     }
 
-    init(width: CGFloat) {
+    init(width: CGFloat, minWidth: CGFloat? = nil) {
         fixedWidth = width
+        self.minWidth = min(width, minWidth ?? width)
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: Theme.height))
         allowedTouchTypes = [.direct]
     }
@@ -37,27 +40,29 @@ class WidgetView: NSView {
 
     override func touchesBegan(with event: NSEvent) {
         guard let t = event.touches(matching: .began, in: self).first else { return }
-        press(t.location(in: self))
+        beginPress(at: t.location(in: self))
     }
 
-    override func touchesEnded(with event: NSEvent) { release() }
-    override func touchesCancelled(with event: NSEvent) { cancel() }
-    override func mouseDown(with event: NSEvent) { press(convert(event.locationInWindow, from: nil)) }
-    override func mouseUp(with event: NSEvent) { release() }
+    override func touchesEnded(with event: NSEvent) { endPress() }
+    override func touchesCancelled(with event: NSEvent) { cancelPress() }
+    override func mouseDown(with event: NSEvent) { beginPress(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseUp(with event: NSEvent) { endPress() }
 
-    private func press(_ p: NSPoint) {
+    // Juga dipanggil DashboardStripView, yang menerima sentuhan atas nama widget di dalamnya.
+
+    func beginPress(at p: NSPoint) {
         pressPoint = p
         needsDisplay = true
     }
 
-    private func release() {
+    func endPress() {
         guard let p = pressPoint else { return }
         pressPoint = nil
         needsDisplay = true
         onTap?(p)
     }
 
-    private func cancel() {
+    func cancelPress() {
         pressPoint = nil
         needsDisplay = true
     }

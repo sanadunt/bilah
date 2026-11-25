@@ -84,7 +84,7 @@ Karena tiap rilis ditandatangani sertifikat yang sama, izin yang sudah diberikan
 - Brightness memakai `DisplayServices`, lampu keyboard dan Night Shift memakai `CoreBrightness`, mode gelap memakai `SkyLight`, dan Mission Control/App Exposé/desktop memakai notifikasi Dock. Semuanya privat. Yang diatur hanya layar bawaan MacBook.
 - Dikte tidak disertakan karena tidak ada cara andal untuk memicunya dari luar.
 - Widget Musik memakai AppleScript karena MediaRemote sudah dikunci Apple sejak macOS 15.4. Spotify/Music tidak pernah dibuka paksa.
-- Kalau bar tidak muat, widget berprioritas rendah disembunyikan duluan: Jam dulu, lalu Musik/Sistem/Kontrol.
+- Kalau widget tidak muat, Claude dan Musik menyusut dulu; kalau masih tidak muat, dashboard bisa digeser ke kiri/kanan. Tidak ada widget yang disembunyikan.
 
 ## Pengembangan
 

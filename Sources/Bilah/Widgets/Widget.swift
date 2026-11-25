@@ -51,14 +51,6 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
 
     var identifier: NSTouchBarItem.Identifier { .init("local.bilah.\(rawValue)") }
 
-    /// Kalau bar kepenuhan, yang prioritasnya rendah disembunyikan duluan.
-    var priority: NSTouchBarItem.Priority {
-        switch self {
-        case .claude, .pomodoro: .high
-        case .nowPlaying, .system, .controls: .normal
-        case .clock: .low
-        }
-    }
 }
 
 protocol Widget: AnyObject {
