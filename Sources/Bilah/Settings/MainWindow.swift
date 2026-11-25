@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case widgets, shortcuts, music, general, pomodoro, claude, permissions, updates, about
+    case widgets, shortcuts, music, pets, general, pomodoro, claude, permissions, updates, about
 
     var id: String { rawValue }
 
@@ -12,6 +12,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .widgets: "Widget"
         case .shortcuts: "Pintasan"
         case .music: "Musik"
+        case .pets: "Peliharaan"
         case .general: "Umum"
         case .pomodoro: "Pomodoro"
         case .claude: "Claude Code"
@@ -26,6 +27,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .widgets: "square.grid.3x1.below.line.grid.1x2"
         case .shortcuts: "square.grid.2x2"
         case .music: "music.note"
+        case .pets: "pawprint.fill"
         case .general: "gearshape"
         case .pomodoro: "timer"
         case .claude: "sparkle"
@@ -128,6 +130,7 @@ struct MainView: View {
         case .widgets: WidgetsPage(store: store)
         case .shortcuts: ShortcutsPage(store: store)
         case .music: MusicPage(store: store, music: dashboard.music)
+        case .pets: PetsPage(store: store)
         case .general: GeneralPage(store: store)
         case .pomodoro: PomodoroPage(store: store)
         case .claude: ClaudePage()
@@ -483,6 +486,119 @@ private struct MusicPage: View {
         if !store.musicExtraApps.contains(id) { store.musicExtraApps.append(id) }
         store.musicApp = id
     }
+}
+
+// MARK: Peliharaan
+
+private struct PetsPage: View {
+    @ObservedObject var store: SettingsStore
+
+    var body: some View {
+        PageScaffold(title: "Peliharaan",
+                     subtitle: "Ketuk peliharaan di Touch Bar untuk mengelus (❤). Ketuk tempat kosong untuk memanggilnya ke sana. Kalau lama tidak disapa, dia tidur.") {
+            Form {
+                Section {
+                    ForEach($store.pets) { $pet in
+                        PetRow(pet: $pet, canRemove: store.pets.count > 1) {
+                            store.pets.removeAll { $0.id == pet.id }
+                        }
+                    }
+                    if store.pets.count < PetConfig.maxCount {
+                        Button {
+                            let species: PetSpecies = store.pets.filter { $0.species == .dog }.count
+                                <= store.pets.filter { $0.species == .cat }.count ? .dog : .cat
+                            store.pets.append(PetConfig(species: species, variant: store.pets.count % 4,
+                                                        name: species.defaultName))
+                        } label: {
+                            Label("Tambah peliharaan", systemImage: "plus")
+                        }
+                    }
+                } header: {
+                    Text("Peliharaan kamu")
+                } footer: {
+                    Text("Maksimal \(PetConfig.maxCount). Atur lebar area mainnya lewat Atur tata letak di bawah preview.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Kebiasaan") {
+                    Toggle("Joget saat musik diputar", isOn: $store.petDance)
+                    Toggle("Lebih sering tidur di malam hari (23.00–06.00)", isOn: $store.petNightSleep)
+                }
+            }
+            .formStyle(.grouped)
+        }
+    }
+}
+
+private struct PetRow: View {
+    @Binding var pet: PetConfig
+    let canRemove: Bool
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            PetPortrait(config: pet)
+                .frame(width: 56, height: 40)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    TextField("Nama", text: $pet.name)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 140)
+                    Picker("", selection: $pet.species) {
+                        ForEach(PetSpecies.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 160)
+                }
+                HStack(spacing: 8) {
+                    ForEach(Array(pet.species.variants.enumerated()), id: \.offset) { i, name in
+                        let swatch = PetPalette.of(PetConfig(species: pet.species, variant: i, name: ""))
+                        Button {
+                            pet.variant = i
+                        } label: {
+                            Circle()
+                                .fill(Color(nsColor: swatch.patch == nil ? swatch.body : swatch.body))
+                                .overlay(Circle().fill(Color(nsColor: swatch.patch ?? swatch.dark)).frame(width: 8, height: 8)
+                                    .offset(x: 4, y: -3))
+                                .overlay(Circle().stroke(pet.variant == i ? Color.accentColor : Color.secondary.opacity(0.4),
+                                                         lineWidth: pet.variant == i ? 2.5 : 1))
+                                .frame(width: 20, height: 20)
+                        }
+                        .buttonStyle(.plain)
+                        .help(name)
+                    }
+                    Text(pet.species.variants[min(pet.variant, 3)]).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if canRemove {
+                Button(action: onRemove) { Image(systemName: "trash") }
+                    .buttonStyle(.borderless)
+                    .help("Hapus peliharaan")
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// Gambar diam peliharaan (pose duduk) untuk daftar di pengaturan.
+private struct PetPortrait: NSViewRepresentable {
+    let config: PetConfig
+
+    final class Portrait: NSView {
+        var config: PetConfig? { didSet { needsDisplay = true } }
+        override var isFlipped: Bool { true }
+        override func draw(_ dirtyRect: NSRect) {
+            guard let config else { return }
+            Draw.roundedRect(bounds, radius: 8, fill: NSColor.black.withAlphaComponent(0.55))
+            PetRenderer.draw(config.species, PetPalette.of(config), pose: PetPose(kind: .sit, tail: 0.2),
+                             at: NSPoint(x: bounds.midX - 2, y: bounds.maxY - 4), facing: 1, scale: 1.2)
+        }
+    }
+
+    func makeNSView(context: Context) -> Portrait { Portrait() }
+    func updateNSView(_ v: Portrait, context: Context) { v.config = config }
 }
 
 // MARK: Umum

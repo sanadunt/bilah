@@ -11,7 +11,14 @@ Dashboard Touch Bar untuk MacBook Pro. Tampil di semua aplikasi, bukan cuma saat
 | Sistem | CPU + grafik 36 detik, RAM, baterai | – |
 | Pomodoro | Fokus → istirahat otomatis | Mulai / jeda / lanjut; ↺ untuk reset saat dijeda |
 | Jam | Jam dan tanggal | – |
+| Peliharaan | Anjing dan kucing animasi: jalan, lari, duduk, tidur, joget saat musik diputar, kadang kejar-kejaran | Ketuk peliharaan untuk mengelus (❤ + namanya muncul); ketuk tempat kosong untuk memanggilnya |
 | Pintasan cepat | Tombol favorit yang kamu pin (default: kecerahan, volume, screenshot, notifikasi) | Jalankan pintasan; ⊞ membuka panel semua pintasan |
+
+## Peliharaan
+
+![Peliharaan](docs/preview-pets.png)
+
+Sampai 3 peliharaan, masing-masing anjing atau kucing dengan 4 pilihan warna dan nama sendiri (jendela Bilah › **Peliharaan**). Mereka jalan-jalan sendiri, tidur kalau lama tidak disapa atau sudah malam, dan joget kalau ada musik diputar. Area mainnya ikut lebar widget, jadi makin lebar di Atur tata letak, makin luas tempat mainnya.
 
 ## Pintasan
 
@@ -59,6 +66,7 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
   ![Isi penuh](docs/preview-fill.png)
 - **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
 - **Musik**: ikuti apa pun yang sedang diputar, atau satu aplikasi saja; pilih aplikasi yang dibuka saat belum ada musik.
+- **Peliharaan**: jenis, warna, dan nama tiap peliharaan, plus kebiasaan joget dan tidur.
 - **Umum**: lebar penuh atau dengan Control Strip, buka otomatis saat login.
 - **Pomodoro**: durasi fokus dan istirahat.
 - **Claude Code**: pasang hook dengan satu klik dan lihat sesi yang sedang berjalan.

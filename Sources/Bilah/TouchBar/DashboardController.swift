@@ -55,6 +55,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             .pomodoro: pomodoro,
             .clock: ClockWidget(),
             .controls: controls,
+            .pet: PetWidget(settings: settings, music: music),
         ]
         super.init()
         runner.onOpenSlider = { [weak self] kind in self?.openOverlay(.slider(kind)) }

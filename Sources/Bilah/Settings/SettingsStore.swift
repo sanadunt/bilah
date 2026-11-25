@@ -21,6 +21,12 @@ final class SettingsStore: ObservableObject {
     @Published var musicApp: String { didSet { defaults.set(musicApp, forKey: "musicApp") } }
     /// Aplikasi tambahan yang dipilih lewat "Pilih aplikasi lain…".
     @Published var musicExtraApps: [String] { didSet { defaults.set(musicExtraApps, forKey: "musicExtraApps") } }
+    /// Peliharaan di widget Peliharaan (maks 3).
+    @Published var pets: [PetConfig] { didSet { defaults.set(try? JSONEncoder().encode(pets), forKey: "pets") } }
+    /// Peliharaan joget saat ada musik diputar.
+    @Published var petDance: Bool { didSet { defaults.set(petDance, forKey: "petDance") } }
+    /// Peliharaan lebih sering tidur pukul 23.00–06.00.
+    @Published var petNightSleep: Bool { didSet { defaults.set(petNightSleep, forKey: "petNightSleep") } }
     @Published var shortcuts: [ShortcutEntry] {
         didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
     }
@@ -42,6 +48,10 @@ final class SettingsStore: ObservableObject {
         musicMode = defaults.string(forKey: "musicMode").flatMap(MusicMode.init(rawValue:)) ?? .auto
         musicApp = defaults.string(forKey: "musicApp") ?? MusicApps.defaultApp
         musicExtraApps = defaults.stringArray(forKey: "musicExtraApps") ?? []
+        pets = defaults.data(forKey: "pets").flatMap { try? JSONDecoder().decode([PetConfig].self, from: $0) }
+            ?? PetConfig.defaults
+        petDance = defaults.object(forKey: "petDance") as? Bool ?? true
+        petNightSleep = defaults.object(forKey: "petNightSleep") as? Bool ?? true
         shortcuts = Self.loadShortcuts(defaults)
     }
 

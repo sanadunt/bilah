@@ -1,7 +1,7 @@
 import AppKit
 
 enum WidgetKind: String, CaseIterable, Codable, Identifiable {
-    case claude, nowPlaying, system, pomodoro, clock, controls
+    case claude, nowPlaying, system, pomodoro, clock, controls, pet
 
     var id: String { rawValue }
 
@@ -13,6 +13,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .pomodoro: "Pomodoro"
         case .clock: "Jam"
         case .controls: "Pintasan cepat"
+        case .pet: "Peliharaan"
         }
     }
 
@@ -24,6 +25,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .pomodoro: "timer"
         case .clock: "clock"
         case .controls: "slider.horizontal.3"
+        case .pet: "pawprint.fill"
         }
     }
 
@@ -36,6 +38,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .pomodoro: "Pomodoro"
         case .clock: "Jam"
         case .controls: "Pintasan"
+        case .pet: "Peliharaan"
         }
     }
 
@@ -47,6 +50,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .pomodoro: "Timer fokus dan istirahat. Ketuk untuk mulai/jeda."
         case .clock: "Jam dan tanggal."
         case .controls: "Tombol favorit yang kamu pin, plus ⋯ untuk semua pintasan."
+        case .pet: "Anjing dan kucing yang jalan-jalan, tidur, dan joget. Ketuk untuk mengelus."
         }
     }
 
@@ -58,6 +62,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .pomodoro: Theme.coral
         case .clock: Theme.violet
         case .controls: Theme.secondary
+        case .pet: NSColor(srgbRed: 1, green: 0.55, blue: 0.65, alpha: 1)
         }
     }
 

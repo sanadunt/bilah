@@ -55,6 +55,22 @@ enum Snapshot {
         add(BarContainerView(leading: CloseView(), content: strip, width: barWidth), to: canvas, inset: inset)
         render(canvas, to: path)
 
+        // Peliharaan: anjing jalan, kucing dielus, anjing putih tidur.
+        let petCanvas = Canvas(frame: canvas.frame)
+        let world = PetWorld()
+        world.sync([PetConfig(species: .dog, variant: 0, name: "Bobo"), PetConfig(species: .cat, variant: 0, name: "Mochi"),
+                    PetConfig(species: .dog, variant: 3, name: "Kopi")])
+        world.span = barWidth - 38 - PetWorld.margin * 2
+        let petNow = CACurrentMediaTime()
+        world.pets[0].x = 0.18; world.pets[0].mode = .walk; world.pets[0].target = 0.4; world.pets[0].legPhase = 1.1
+        world.pets[1].x = 0.55
+        world.tap(at: 0.55, now: petNow - 0.35)
+        world.pets[2].x = 0.88; world.pets[2].set(.sleep, now: petNow, for: 60); world.pets[2].facing = -1
+        world.step(now: petNow, dt: 0.01, musicPlaying: false, dance: true, nightSleep: false)
+        let petView = PetView(world: world)
+        add(BarContainerView(leading: CloseView(), content: petView, width: barWidth), to: petCanvas, inset: inset)
+        render(petCanvas, to: (path as NSString).deletingPathExtension + "-pets.png")
+
         // Isi penuh: lebih sedikit widget, sisa ruang dipakai untuk melebar (bukan celah kosong).
         let fillCanvas = Canvas(frame: canvas.frame)
         let fillClaude = ClaudeView()
