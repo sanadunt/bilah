@@ -7,6 +7,7 @@ final class DashboardStripView: NSView {
     static let minGap: CGFloat = 6
 
     private let widgets: [WidgetView]
+    private let spread: Bool
     private let fade = EdgeFadeView()
     private var plan = StripLayout.Plan(frames: [], contentWidth: 0)
     private var offset: CGFloat = 0
@@ -17,8 +18,9 @@ final class DashboardStripView: NSView {
     /// Dipanggil tiap tata letak berubah: (lebar tersedia, lebar isi).
     var onLayout: ((CGFloat, CGFloat) -> Void)?
 
-    init(widgets: [WidgetView]) {
+    init(widgets: [WidgetView], spread: Bool = true) {
         self.widgets = widgets
+        self.spread = spread
         super.init(frame: NSRect(x: 0, y: 0, width: 600, height: Theme.height))
         allowedTouchTypes = [.direct]
         widgets.forEach(addSubview)
@@ -46,7 +48,7 @@ final class DashboardStripView: NSView {
     private func arrange() {
         guard bounds.width > 0 else { return }
         let new = StripLayout.plan(widgets.map { ($0.fixedWidth, $0.minWidth) }, available: bounds.width,
-                                   minGap: Self.minGap)
+                                   minGap: Self.minGap, spread: spread)
         let changed = new != plan
         plan = new
         offset = min(offset, maxOffset)

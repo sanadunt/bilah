@@ -152,26 +152,32 @@ final class ControlsView: WidgetView {
     enum Item: Equatable { case action(ShortcutAction), more }
 
     private static let pad: CGFloat = 3
-    private let items: [(item: Item, x: CGFloat, width: CGFloat)]
+    private let entries: [(item: Item, base: CGFloat)]
+    private let baseTotal: CGFloat
     var states = ShortcutStates()
     private var attention: (id: String, until: Date)?
 
     override var highlightsWhole: Bool { false }
 
     init(actions: [ShortcutAction]) {
-        var x = Self.pad
-        var list: [(Item, CGFloat, CGFloat)] = []
-        for a in actions {
-            let w = ShortcutButton.width(a, compact: true)
-            list.append((.action(a), x, w))
-            x += w
-        }
-        list.append((.more, x, 31))
-        items = list.map { (item: $0.0, x: $0.1, width: $0.2) }
-        super.init(width: x + 31 + Self.pad)
+        let list = actions.map { (item: Item.action($0), base: ShortcutButton.width($0, compact: true)) } + [(item: .more, base: 31)]
+        let total = list.reduce(0) { $0 + $1.base }
+        entries = list
+        baseTotal = total
+        // Lebih lebar = jarak antar-tombol makin lega; lebih sempit = makin rapat.
+        super.init(width: total + Self.pad * 2, range: (total * 0.85 + Self.pad * 2)...(total * 1.7 + Self.pad * 2))
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    private var items: [(item: Item, x: CGFloat, width: CGFloat)] {
+        let k = (bounds.width - Self.pad * 2) / baseTotal
+        var x = Self.pad
+        return entries.map { e in
+            defer { x += e.base * k }
+            return (e.item, x, e.base * k)
+        }
+    }
 
     func item(at p: NSPoint) -> Item? {
         items.first { p.x >= $0.x && p.x < $0.x + $0.width }?.item

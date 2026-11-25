@@ -14,7 +14,9 @@ enum StripLayout {
         }
     }
 
-    static func plan(_ widths: [(natural: CGFloat, min: CGFloat)], available: CGFloat, minGap: CGFloat) -> Plan {
+    /// `spread` = sisa ruang dibagi rata sebagai jarak; false = rapat di kiri.
+    static func plan(_ widths: [(natural: CGFloat, min: CGFloat)], available: CGFloat, minGap: CGFloat,
+                     spread: Bool = true) -> Plan {
         guard !widths.isEmpty else { return Plan(frames: [], contentWidth: 0) }
         let gaps = CGFloat(widths.count - 1)
         let natural = widths.reduce(0) { $0 + $1.natural }
@@ -22,7 +24,7 @@ enum StripLayout {
         var gap = minGap
 
         if natural + minGap * gaps <= available {
-            if gaps > 0 { gap = (available - natural) / gaps }
+            if spread, gaps > 0 { gap = (available - natural) / gaps }
         } else {
             let deficit = natural + minGap * gaps - available
             let room = widths.reduce(0) { $0 + ($1.natural - $1.min) }

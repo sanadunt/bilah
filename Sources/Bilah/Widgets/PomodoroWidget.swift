@@ -115,7 +115,7 @@ final class PomodoroView: WidgetView {
 
     override var highlightsWhole: Bool { false }
 
-    init() { super.init(width: 114) }
+    init() { super.init(width: 114, range: 100...190) }
     required init?(coder: NSCoder) { fatalError() }
 
     override func drawContent(_ b: NSRect) {

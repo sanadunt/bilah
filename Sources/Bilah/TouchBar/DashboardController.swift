@@ -144,11 +144,17 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         layoutSignature = settings.layoutSignature
     }
 
+    /// View widget dengan lebar pilihan pengguna. Dipakai Touch Bar, preview, dan mode Atur tata letak.
+    func makeSizedView(_ kind: WidgetKind) -> WidgetView? {
+        guard let v = widgets[kind]?.makeView() else { return nil }
+        v.applyWidth(settings.width(for: kind))
+        return v
+    }
+
     /// View baru untuk preview di jendela; ikut menerima data live dari widget yang sama.
     func makePreviewView(_ kind: WidgetKind) -> WidgetView {
-        guard let widget = widgets[kind] else { return WidgetView(width: 60) }
-        let v = widget.makeView()
-        widget.tick()
+        guard let v = makeSizedView(kind) else { return WidgetView(width: 60) }
+        widgets[kind]?.tick()
         return v
     }
 
@@ -237,7 +243,8 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         case Self.dashboardID:
             let close = CloseView(symbol: "chevron.left")
             close.onTap = { [weak self] _ in self?.hide() }
-            let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap { widgets[$0]?.makeView() })
+            let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap(makeSizedView),
+                                           spread: settings.spreadWidgets)
             strip.onLayout = { available, content in LayoutReport.write(available: available, content: content) }
             let container = BarContainerView(leading: close, content: strip, width: regionWidth)
             dashboardContainer = container

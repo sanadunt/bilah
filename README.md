@@ -50,6 +50,9 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
 
 - **Preview langsung** di atas: Touch Bar tiruan dengan data asli, dan widgetnya bisa diklik.
 - **Widget**: seret untuk mengubah urutan, nyalakan atau matikan tiap widget.
+- **Atur tata letak** (tombol di bawah preview): susun widget langsung di Touch Bar tiruan. Seret untuk memindah, tarik garis di tepi kanan untuk mengecilkan/membesarkan (ukuran pt tampil di bawah tiap widget), klik dua kali untuk ukuran bawaan, × untuk menyembunyikan. Meteran menunjukkan berapa pt yang terpakai dari lebar Touch Bar, dan garis merah menandai bagian yang harus digeser.
+
+  ![Atur tata letak](docs/layout-editor.png)
 - **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
 - **Umum**: lebar penuh atau dengan Control Strip, buka otomatis saat login.
 - **Pomodoro**: durasi fokus dan istirahat.

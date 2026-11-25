@@ -109,43 +109,53 @@ final class SystemView: WidgetView {
     var memory: Double?
     var battery: BatteryInfo?
 
-    init() { super.init(width: 222) }
+    init() { super.init(width: 222, range: 150...360) }
     required init?(coder: NSCoder) { fatalError() }
 
     override func drawContent(_ b: NSRect) {
         let label = Theme.font(8.5, .semibold)
         let value = Theme.mono(11.5, .semibold)
 
-        // CPU: angka + grafik garis 36 detik terakhir.
+        // Lebar bebas: baterai 48 pt (hilang kalau < 200 pt), RAM 70 pt, sisanya CPU + grafik.
+        let batteryWidth: CGFloat = b.width >= 200 ? 48 : 0
+        let ramX = b.width - batteryWidth - 70
+        let batteryX = b.width - batteryWidth
+
+        // CPU: angka + grafik garis 36 detik terakhir (grafik hilang kalau terlalu sempit).
         let cpu = cpuHistory.last
         Draw.line("CPU", label, Theme.secondary, x: 9, y: 3.5, width: 40)
         Draw.line(cpu.map { "\(Int(($0 * 100).rounded()))%" } ?? "–", value, cpu.map(Theme.load) ?? Theme.text,
                   x: 9, y: 14, width: 40)
-        drawSparkline(in: NSRect(x: 46, y: 6, width: 50, height: 18), color: cpu.map(Theme.load) ?? Theme.green)
+        let sparkWidth = ramX - 46 - 8
+        if sparkWidth >= 16 {
+            drawSparkline(in: NSRect(x: 46, y: 6, width: sparkWidth, height: 18), color: cpu.map(Theme.load) ?? Theme.green)
+        }
 
-        divider(at: 104, in: b)
+        divider(at: ramX, in: b)
 
         // RAM: angka + cincin.
-        Draw.line("RAM", label, Theme.secondary, x: 112, y: 3.5, width: 40)
-        Draw.line(memory.map { "\(Int(($0 * 100).rounded()))%" } ?? "–", value, Theme.text, x: 112, y: 14, width: 40)
-        let ringCenter = NSPoint(x: 158, y: b.midY)
+        Draw.line("RAM", label, Theme.secondary, x: ramX + 8, y: 3.5, width: 40)
+        Draw.line(memory.map { "\(Int(($0 * 100).rounded()))%" } ?? "–", value, Theme.text, x: ramX + 8, y: 14, width: 40)
+        let ringCenter = NSPoint(x: ramX + 54, y: b.midY)
         Draw.ring(ringCenter, 7, width: 2.4, color: Theme.track)
         Draw.ring(ringCenter, 7, width: 2.4, color: Theme.load(memory ?? 0), to: CGFloat(memory ?? 0))
 
-        divider(at: 174, in: b)
+        guard batteryWidth > 0 else { return }
+        divider(at: batteryX, in: b)
 
         // Baterai.
         guard let bat = battery else {
-            Draw.symbol("powerplug.fill", size: 11, weight: .medium, color: Theme.secondary, center: NSPoint(x: 198, y: b.midY))
+            Draw.symbol("powerplug.fill", size: 11, weight: .medium, color: Theme.secondary,
+                        center: NSPoint(x: batteryX + 24, y: b.midY))
             return
         }
         let color = bat.charging || bat.pluggedIn ? Theme.green : (bat.percent <= 20 ? Theme.red : Theme.text)
         let level = bat.percent > 87 ? "100" : bat.percent > 62 ? "75" : bat.percent > 37 ? "50" : bat.percent > 12 ? "25" : "0"
-        Draw.symbol("battery.\(level)percent", size: 12, weight: .regular, color: color, center: NSPoint(x: 191, y: 10.5))
+        Draw.symbol("battery.\(level)percent", size: 12, weight: .regular, color: color, center: NSPoint(x: batteryX + 17, y: 10.5))
         if bat.charging {
-            Draw.symbol("bolt.fill", size: 8, weight: .bold, color: Theme.amber, center: NSPoint(x: 209, y: 10.5))
+            Draw.symbol("bolt.fill", size: 8, weight: .bold, color: Theme.amber, center: NSPoint(x: batteryX + 35, y: 10.5))
         }
-        Draw.line("\(bat.percent)%", Theme.mono(10, .semibold), Theme.text, x: 175, y: 16, width: 44, align: .center)
+        Draw.line("\(bat.percent)%", Theme.mono(10, .semibold), Theme.text, x: batteryX + 1, y: 16, width: 44, align: .center)
     }
 
     private func divider(at x: CGFloat, in b: NSRect) {

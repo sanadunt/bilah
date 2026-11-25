@@ -108,13 +108,15 @@ enum Snapshot {
 
 extension Snapshot {
     /// `Bilah snapshot-window out.png [halaman]`: render jendela utama ke PNG tanpa menampilkannya.
-    static func window(path: String, page: Page) {
+    static func window(path: String, page: Page, editing: Bool = false) {
         _ = NSApplication.shared
         let store = SettingsStore()
         let dashboard = DashboardController(settings: store)
         let nav = Navigation()
         nav.page = page
-        let root = MainView(store: store, dashboard: dashboard, updater: Updater(), navigation: nav)
+        let editor = LayoutEditorState()
+        editor.editing = editing
+        let root = MainView(store: store, dashboard: dashboard, updater: Updater(), navigation: nav, editor: editor)
         let host = NSHostingView(rootView: root)
         host.frame = NSRect(origin: .zero, size: host.fittingSize)
         let w = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)

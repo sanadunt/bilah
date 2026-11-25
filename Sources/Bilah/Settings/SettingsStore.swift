@@ -11,6 +11,10 @@ final class SettingsStore: ObservableObject {
     @Published var showOnPomodoroEnd: Bool { didSet { defaults.set(showOnPomodoroEnd, forKey: "showOnPomodoroEnd") } }
     @Published var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: "focusMinutes") } }
     @Published var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: "breakMinutes") } }
+    /// Lebar pilihan pengguna per widget (pt). Tidak ada = lebar bawaan.
+    @Published var widgetWidths: [String: Double] { didSet { defaults.set(widgetWidths, forKey: "widgetWidths") } }
+    /// true = sisa ruang dibagi rata di antara widget; false = widget rapat di kiri.
+    @Published var spreadWidgets: Bool { didSet { defaults.set(spreadWidgets, forKey: "spreadWidgets") } }
     @Published var shortcuts: [ShortcutEntry] {
         didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
     }
@@ -25,7 +29,17 @@ final class SettingsStore: ObservableObject {
         showOnPomodoroEnd = defaults.object(forKey: "showOnPomodoroEnd") as? Bool ?? true
         focusMinutes = defaults.object(forKey: "focusMinutes") as? Int ?? 25
         breakMinutes = defaults.object(forKey: "breakMinutes") as? Int ?? 5
+        widgetWidths = defaults.dictionary(forKey: "widgetWidths") as? [String: Double] ?? [:]
+        spreadWidgets = defaults.object(forKey: "spreadWidgets") as? Bool ?? true
         shortcuts = Self.loadShortcuts(defaults)
+    }
+
+    func width(for kind: WidgetKind) -> CGFloat? { widgetWidths[kind.rawValue].map { CGFloat($0) } }
+
+    /// Simpan susunan widget yang tampil (urutan baru) tanpa mengubah posisi widget yang tersembunyi.
+    func setVisibleOrder(_ visible: [WidgetKind]) {
+        var next = visible.makeIterator()
+        order = order.map { disabled.contains($0) ? $0 : (next.next() ?? $0) }
     }
 
     /// Pintasan tersimpan + tombol bawaan baru (dari versi Bilah yang lebih baru) ditambahkan di belakang.
@@ -61,6 +75,8 @@ final class SettingsStore: ObservableObject {
     var layoutSignature: String {
         visibleWidgets.map(\.rawValue).joined(separator: ",") + "|\(hideControlStrip)|"
             + pinnedActions.map(\.id).joined(separator: ",")
+            + "|" + widgetWidths.sorted { $0.key < $1.key }.map { "\($0.key)=\(Int($0.value))" }.joined(separator: ",")
+            + "|\(spreadWidgets)"
     }
 
     func isEnabled(_ kind: WidgetKind) -> Bool { !disabled.contains(kind) }

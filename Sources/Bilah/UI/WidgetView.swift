@@ -5,9 +5,16 @@ import QuartzCore
 class WidgetView: NSView {
     var onTap: ((NSPoint) -> Void)?
     private(set) var pressPoint: NSPoint?
-    let fixedWidth: CGFloat
-    /// Lebar terkecil yang masih enak dibaca; dashboard boleh menyusutkan widget sampai sini kalau sempit.
-    let minWidth: CGFloat
+    let defaultWidth: CGFloat
+    /// Rentang lebar yang boleh diatur pengguna di mode Atur tata letak.
+    let widthRange: ClosedRange<CGFloat>
+    private let shrinkMin: CGFloat
+    /// Lebar yang dipakai sekarang: bawaan, atau pilihan pengguna.
+    private(set) var fixedWidth: CGFloat
+    /// Lebar terkecil saat dashboard sempit. Hanya menyusut kalau pengguna belum mengatur lebarnya sendiri.
+    private(set) var minWidth: CGFloat
+
+    var isResizable: Bool { widthRange.lowerBound < widthRange.upperBound }
 
     /// true = seluruh kapsul menyala saat ditekan. Widget dengan beberapa zona tombol menggambar sorotannya sendiri.
     var highlightsWhole: Bool { true }
@@ -16,9 +23,12 @@ class WidgetView: NSView {
         didSet { if animating != oldValue { Animator.shared.set(self, animating: animating) } }
     }
 
-    init(width: CGFloat, minWidth: CGFloat? = nil) {
+    init(width: CGFloat, minWidth: CGFloat? = nil, range: ClosedRange<CGFloat>? = nil) {
+        defaultWidth = width
         fixedWidth = width
-        self.minWidth = min(width, minWidth ?? width)
+        shrinkMin = min(width, minWidth ?? width)
+        self.minWidth = shrinkMin
+        widthRange = range ?? width...width
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: Theme.height))
         allowedTouchTypes = [.direct]
     }
@@ -35,6 +45,20 @@ class WidgetView: NSView {
     }
 
     func drawContent(_ b: NSRect) {}
+
+    /// nil = lebar bawaan (boleh menyusut otomatis); angka = pilihan pengguna, dijaga tetap.
+    func applyWidth(_ width: CGFloat?) {
+        if let width {
+            fixedWidth = clampWidth(width)
+            minWidth = fixedWidth
+        } else {
+            fixedWidth = defaultWidth
+            minWidth = shrinkMin
+        }
+        invalidateIntrinsicContentSize()
+    }
+
+    func clampWidth(_ w: CGFloat) -> CGFloat { min(widthRange.upperBound, max(widthRange.lowerBound, w)) }
 
     // MARK: Sentuhan (Touch Bar) dan klik (untuk uji di layar biasa)
 

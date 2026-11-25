@@ -153,8 +153,10 @@ final class NowPlayingWidget: Widget {
 
 final class NowPlayingView: WidgetView {
     enum Zone { case info, prev, toggle, next }
-    private static let zones: [Zone] = [.prev, .toggle, .next]
     private static let zoneWidth: CGFloat = 31
+
+    /// Kalau sempit, tinggal tombol putar/jeda.
+    private var zones: [Zone] { bounds.width < 230 ? [.toggle] : [.prev, .toggle, .next] }
 
     var track: Track? {
         didSet {
@@ -165,15 +167,15 @@ final class NowPlayingView: WidgetView {
 
     override var highlightsWhole: Bool { false }
 
-    init() { super.init(width: 268, minWidth: 206) }
+    init() { super.init(width: 268, minWidth: 206, range: 180...420) }
     required init?(coder: NSCoder) { fatalError() }
 
-    private var controlsX: CGFloat { bounds.width - Self.zoneWidth * 3 - 4 }
+    private var controlsX: CGFloat { bounds.width - Self.zoneWidth * CGFloat(zones.count) - 4 }
 
     func zone(at p: NSPoint) -> Zone {
         guard track != nil, p.x >= controlsX else { return .info }
         let i = Int((p.x - controlsX) / Self.zoneWidth)
-        return Self.zones[min(2, max(0, i))]
+        return zones[min(zones.count - 1, max(0, i))]
     }
 
     private func center(_ i: Int) -> NSPoint {
@@ -205,16 +207,17 @@ final class NowPlayingView: WidgetView {
         Draw.line(t.title, Theme.font(11, .semibold), Theme.text, x: 32, y: 3, width: textWidth)
         Draw.line(t.artist, Theme.font(9.5), Theme.secondary, x: 32, y: 16, width: textWidth)
 
-        let symbols = ["backward.fill", t.playing ? "pause.fill" : "play.fill", "forward.fill"]
-        for i in 0..<3 {
+        for (i, zone) in zones.enumerated() {
             let c = center(i)
-            if pressedZone == Self.zones[i] { Draw.circle(c, 12.5, Theme.pillPressed) }
-            Draw.symbol(symbols[i], size: i == 1 ? 10.5 : 9, weight: .bold, color: Theme.text, center: c)
+            if pressedZone == zone { Draw.circle(c, 12.5, Theme.pillPressed) }
+            let symbol = zone == .prev ? "backward.fill" : zone == .next ? "forward.fill" : (t.playing ? "pause.fill" : "play.fill")
+            Draw.symbol(symbol, size: zone == .toggle ? 10.5 : 9, weight: .bold, color: Theme.text, center: c)
         }
 
         // Progres lagu sebagai cincin di sekeliling tombol play.
         let frac = t.duration > 0 ? CGFloat(t.livePosition / t.duration) : 0
-        Draw.ring(center(1), 11.5, width: 1.8, color: Theme.track)
-        Draw.ring(center(1), 11.5, width: 1.8, color: t.player.tint, to: frac)
+        let toggle = center(zones.firstIndex(of: .toggle) ?? 0)
+        Draw.ring(toggle, 11.5, width: 1.8, color: Theme.track)
+        Draw.ring(toggle, 11.5, width: 1.8, color: t.player.tint, to: frac)
     }
 }

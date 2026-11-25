@@ -10,8 +10,9 @@ if arguments.count > 1 {
         print(HookConfig.json(executable: Bundle.main.executablePath ?? arguments[0]))
         exit(0)
     case "snapshot-window":
-        let page = arguments.count > 3 ? Page(rawValue: arguments[3]) ?? .widgets : .widgets
-        Snapshot.window(path: arguments.count > 2 ? arguments[2] : "bilah-window.png", page: page)
+        let pageArg = arguments.count > 3 ? arguments[3] : "widgets"
+        Snapshot.window(path: arguments.count > 2 ? arguments[2] : "bilah-window.png",
+                        page: Page(rawValue: pageArg) ?? .widgets, editing: pageArg == "edit")
         exit(0)
     case "snapshot":
         Snapshot.run(path: arguments.count > 2 ? arguments[2] : "bilah-preview.png")

@@ -27,6 +27,18 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// Nama pendek untuk label di mode Atur tata letak.
+    var shortTitle: String {
+        switch self {
+        case .claude: "Claude"
+        case .nowPlaying: "Musik"
+        case .system: "Sistem"
+        case .pomodoro: "Pomodoro"
+        case .clock: "Jam"
+        case .controls: "Pintasan"
+        }
+    }
+
     var detail: String {
         switch self {
         case .claude: "Status sesi Claude Code dari hook: lagi kerja, nunggu izin, selesai."

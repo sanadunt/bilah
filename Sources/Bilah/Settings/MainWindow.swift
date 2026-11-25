@@ -46,6 +46,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     private let dashboard: DashboardController
     private let updater: Updater
     private let navigation = Navigation()
+    private let editor = LayoutEditorState()
 
     init(store: SettingsStore, dashboard: DashboardController, updater: Updater) {
         self.store = store
@@ -56,7 +57,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     func show(page: Page? = nil) {
         if let page { navigation.page = page }
         if window == nil {
-            let root = MainView(store: store, dashboard: dashboard, updater: updater, navigation: navigation)
+            let root = MainView(store: store, dashboard: dashboard, updater: updater, navigation: navigation,
+                                editor: editor)
             let w = NSWindow(contentViewController: NSHostingController(rootView: root))
             w.title = "Bilah"
             w.styleMask = [.titled, .closable, .miniaturizable]
@@ -75,6 +77,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        editor.editing = false
         dashboard.previewActive = false
         NSApp.setActivationPolicy(.accessory)
     }
@@ -87,16 +90,17 @@ struct MainView: View {
     @ObservedObject var dashboard: DashboardController
     @ObservedObject var updater: Updater
     @ObservedObject var navigation: Navigation
+    @ObservedObject var editor: LayoutEditorState
 
     var body: some View {
         VStack(spacing: 0) {
             Header(dashboard: dashboard, updater: updater, navigation: navigation)
-            VStack(spacing: 8) {
-                BarPreview(settings: store, dashboard: dashboard)
-                    .frame(width: BarPreviewView.size.width, height: BarPreviewView.size.height)
-                Text("Preview langsung. Widget di sini bisa diklik seperti di Touch Bar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 10) {
+                let size = BarPreviewView.size(editing: editor.editing)
+                BarPreview(settings: store, editor: editor, dashboard: dashboard)
+                    .frame(width: size.width, height: size.height)
+                LayoutToolbar(store: store, editor: editor)
+                    .frame(width: size.width)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
@@ -113,7 +117,7 @@ struct MainView: View {
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(width: BarPreviewView.size.width + 40, height: 740)
+        .frame(width: BarPreviewView.size(editing: false).width + 40, height: 780)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
@@ -198,7 +202,7 @@ private struct WidgetsPage: View {
 
     var body: some View {
         PageScaffold(title: "Widget",
-                     subtitle: "Seret untuk mengubah urutan (atas = kiri). Kalau Touch Bar penuh, widget berprioritas rendah disembunyikan otomatis.") {
+                     subtitle: "Seret untuk mengubah urutan (atas = kiri), atau pakai \"Atur tata letak\" di bawah preview untuk menyusun dan mengubah lebar langsung di Touch Bar.") {
             List {
                 ForEach(store.order) { kind in
                     WidgetRow(kind: kind, enabled: Binding(get: { store.isEnabled(kind) },

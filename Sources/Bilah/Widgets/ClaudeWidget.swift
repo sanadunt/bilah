@@ -46,7 +46,7 @@ final class ClaudeView: WidgetView {
     private var sessions: [ClaudeSession] = []
     private var focus = 0
 
-    init() { super.init(width: 200, minWidth: 156) }
+    init() { super.init(width: 200, minWidth: 156, range: 140...340) }
     required init?(coder: NSCoder) { fatalError() }
 
     func update(sessions: [ClaudeSession], focusID: String?) {
