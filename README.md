@@ -82,30 +82,19 @@ Tombol `‹` di kiri mengecilkan dashboard. Ikon Bilah di Control Strip memuncul
 
 ## Mengatur
 
-Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) menampilkan jendela utama:
+Buka Bilah (Launchpad, Finder, atau menu bar › **Buka Bilah…**) untuk membuka jendela pengaturan bergaya System Settings. Jendelanya bisa diubah ukurannya, dan sidebar-nya dikelompokkan:
 
-![Jendela Bilah](docs/window.png)
+| Kelompok | Halaman |
+|---|---|
+| Touch Bar | **Tata letak**: preview langsung (bisa diklik dan digeser), Atur tata letak, widget per halaman, halaman, dan profil per aplikasi · **Pintasan** |
+| Widget | **Musik** · **Peliharaan & Game** · **Info & Lokasi** · **Fokus** (Pomodoro + pengingat istirahat) · **Claude Code** |
+| Aplikasi | **Tampilan** (tema, perilaku Touch Bar, login) · **Izin** · **Update** · **Tentang** |
 
-- **Preview langsung** di atas: Touch Bar tiruan dengan data asli, dan widgetnya bisa diklik.
-- **Widget**: seret untuk mengubah urutan, nyalakan atau matikan tiap widget.
-- **Atur tata letak** (tombol di bawah preview): susun widget langsung di Touch Bar tiruan. Seret untuk memindah, tarik garis di tepi kanan untuk mengecilkan/membesarkan (ukuran pt tampil di bawah tiap widget), klik dua kali untuk ukuran bawaan, × untuk menyembunyikan. Meteran menunjukkan berapa pt yang terpakai dari lebar Touch Bar, dan garis merah menandai bagian yang harus digeser.
+Tombol **Tampilkan/Sembunyikan di Touch Bar** dan pemberitahuan update ada di toolbar. Selama jendela terbuka, Bilah muncul di Dock; begitu ditutup, Bilah kembali ke menu bar dan Touch Bar saja. Kalau dibuka otomatis saat login, jendelanya tidak muncul.
 
-  ![Atur tata letak](docs/layout-editor.png)
+**Atur tata letak** (di halaman Tata letak): seret widget untuk memindah, tarik garis di tepi kanan untuk mengecilkan/membesarkan (ukuran pt tampil di bawah tiap widget), klik dua kali untuk ukuran bawaan, × untuk menyembunyikan. Meteran menunjukkan berapa pt yang terpakai dari lebar Touch Bar, dan sisa ruang dipakai sesuai pilihan jarak: **Isi penuh** (bawaan: lebar yang kamu atur jadi ukuran dasar, lalu widget melebar sebanding mengisi Touch Bar), **Sebar merata**, atau **Rapat**.
 
-  Sisa ruang dipakai sesuai pilihan jarak: **Isi penuh** (bawaan: lebar yang kamu atur jadi ukuran dasar, lalu semua widget melebar sebanding mengisi sisa ruang sampai batas maksimalnya, jadi tidak ada celah kosong), **Sebar merata** (sisa ruang jadi jarak), atau **Rapat** (semua di kiri).
-
-  ![Isi penuh](docs/preview-fill.png)
-- **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
-- **Musik**: ikuti apa pun yang sedang diputar, atau satu aplikasi saja; pilih aplikasi yang dibuka saat belum ada musik.
-- **Peliharaan**: jenis, warna, dan nama tiap peliharaan, plus kebiasaan joget dan tidur.
-- **Halaman & Profil**: bagi widget ke beberapa halaman (usap Touch Bar atau ketuk titik di sebelah ‹ untuk pindah), dan atur halaman yang otomatis dibuka per aplikasi.
-- **Umum**: tema (kapsul abu-abu/hitam/garis + warna aksen), lebar penuh atau dengan Control Strip, buka otomatis saat login.
-- **Pomodoro**: durasi fokus dan istirahat.
-- **Claude Code**: pasang hook dengan satu klik dan lihat sesi yang sedang berjalan.
-- **Izin**: status izin macOS dan tombol untuk memintanya.
-- **Update**: cek dan pasang versi baru.
-
-Selama jendela terbuka, Bilah muncul di Dock. Begitu ditutup, Bilah kembali ke menu bar dan Touch Bar saja. Kalau dibuka otomatis saat login, jendelanya tidak muncul.
+![Isi penuh](docs/preview-fill.png)
 
 ## Update
 

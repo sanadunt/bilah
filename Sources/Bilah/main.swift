@@ -23,7 +23,7 @@ if arguments.count > 1 {
     case "snapshot-window":
         let pageArg = arguments.count > 3 ? arguments[3] : "widgets"
         Snapshot.window(path: arguments.count > 2 ? arguments[2] : "bilah-window.png",
-                        page: Page(rawValue: pageArg) ?? .widgets, editing: pageArg == "edit")
+                        page: Page(rawValue: pageArg) ?? .layout, editing: pageArg == "edit")
         exit(0)
     case "snapshot":
         Snapshot.run(path: arguments.count > 2 ? arguments[2] : "bilah-preview.png")

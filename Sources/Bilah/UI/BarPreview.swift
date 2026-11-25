@@ -26,6 +26,21 @@ final class BarPreviewView: NSView {
     override var isFlipped: Bool { true }
     override var intrinsicContentSize: NSSize { Self.size(editing: editing) }
 
+    /// Isi selalu digambar di ukuran asli Touch Bar; kalau jendela lebih sempit, semuanya diperkecil
+    /// (klik dan seret tetap pas karena AppKit ikut mengonversi koordinatnya).
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        fitBounds()
+    }
+
+    private func fitBounds() {
+        let full = Self.size(editing: editing)
+        guard frame.width > 0 else { return }
+        let scale = min(1, frame.width / full.width)
+        setBoundsSize(NSSize(width: frame.width / scale, height: frame.height / scale))
+        needsDisplay = true
+    }
+
     private var widgetWidth: CGFloat {
         Self.barWidth - (showsControlStrip ? BarLayout.controlStripWidth + BarLayout.closeGap : 0)
     }
@@ -53,6 +68,7 @@ final class BarPreviewView: NSView {
         showsControlStrip = !settings.hideControlStrip
         editing = editor.editing
         invalidateIntrinsicContentSize()
+        fitBounds()
 
         let width = widgetWidth
         if editing {
@@ -102,6 +118,13 @@ struct BarPreview: NSViewRepresentable {
     func updateNSView(_ v: BarPreviewView, context: Context) {
         v.reload(settings: settings, dashboard: dashboard, editor: editor)
     }
+
+    /// Selebar ruang yang ada (maks ukuran asli), tinggi mengikuti perbandingan Touch Bar.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: BarPreviewView, context: Context) -> CGSize? {
+        let full = BarPreviewView.size(editing: editor.editing)
+        let width = min(proposal.width ?? full.width, full.width)
+        return CGSize(width: width, height: width * full.height / full.width)
+    }
 }
 
 /// Baris di bawah preview: tombol masuk mode edit, atau toolbar edit beserta meteran kapasitas.
@@ -113,10 +136,15 @@ struct LayoutToolbar: View {
 
     var body: some View {
         if editor.editing {
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    PageBar(store: store)
                     capacity
+                    Spacer()
+                    Button("Selesai") { editor.editing = false }
+                        .buttonStyle(.borderedProminent)
+                }
+                HStack(spacing: 12) {
+                    PageBar(store: store)
                     Spacer()
                     Picker("Jarak", selection: $store.spacing) {
                         ForEach(SpacingMode.allCases) { Text($0.title).tag($0) }
@@ -136,8 +164,6 @@ struct LayoutToolbar: View {
                     .fixedSize()
                     Button("Ukuran bawaan") { store.widgetWidths = [:] }
                         .disabled(store.widgetWidths.isEmpty)
-                    Button("Selesai") { editor.editing = false }
-                        .buttonStyle(.borderedProminent)
                 }
                 Text("Seret widget untuk menyusun · tarik garis di tepi kanannya untuk mengubah lebar · klik dua kali untuk ukuran bawaan · × untuk menyembunyikan")
                     .font(.caption)
@@ -145,10 +171,10 @@ struct LayoutToolbar: View {
             }
         } else {
             HStack(spacing: 12) {
-                if store.pages.count > 1 { PageBar(store: store) }
-                Text("Preview langsung. Widget di sini bisa diklik seperti di Touch Bar.")
+                Text("Preview langsung · widget bisa diklik dan digeser seperti di Touch Bar")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Spacer()
                 Button {
                     editor.editing = true
                 } label: {

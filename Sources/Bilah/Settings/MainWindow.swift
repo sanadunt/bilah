@@ -3,21 +3,32 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case widgets, dashboards, shortcuts, music, pets, info, general, pomodoro, claude, permissions, updates, about
+    case layout, shortcuts, music, pets, info, focus, claude, appearance, permissions, updates, about
 
     var id: String { rawValue }
 
+    enum Group: String, CaseIterable {
+        case touchBar = "Touch Bar", widgets = "Widget", app = "Aplikasi"
+    }
+
+    var group: Group {
+        switch self {
+        case .layout, .shortcuts: .touchBar
+        case .music, .pets, .info, .focus, .claude: .widgets
+        case .appearance, .permissions, .updates, .about: .app
+        }
+    }
+
     var title: String {
         switch self {
-        case .widgets: "Widget"
-        case .dashboards: "Halaman & Profil"
+        case .layout: "Tata letak"
         case .shortcuts: "Pintasan"
         case .music: "Musik"
-        case .pets: "Peliharaan"
+        case .pets: "Peliharaan & Game"
         case .info: "Info & Lokasi"
-        case .general: "Umum"
-        case .pomodoro: "Pomodoro"
+        case .focus: "Fokus"
         case .claude: "Claude Code"
+        case .appearance: "Tampilan"
         case .permissions: "Izin"
         case .updates: "Update"
         case .about: "Tentang"
@@ -26,24 +37,39 @@ enum Page: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .widgets: "square.grid.3x1.below.line.grid.1x2"
-        case .dashboards: "rectangle.stack"
-        case .shortcuts: "square.grid.2x2"
+        case .layout: "rectangle.3.group.fill"
+        case .shortcuts: "square.grid.2x2.fill"
         case .music: "music.note"
         case .pets: "pawprint.fill"
         case .info: "location.fill"
-        case .general: "gearshape"
-        case .pomodoro: "timer"
+        case .focus: "timer"
         case .claude: "sparkle"
-        case .permissions: "lock.shield"
-        case .updates: "arrow.down.circle"
-        case .about: "info.circle"
+        case .appearance: "paintbrush.fill"
+        case .permissions: "lock.fill"
+        case .updates: "arrow.down.circle.fill"
+        case .about: "info.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .layout: .blue
+        case .shortcuts: .indigo
+        case .music: .pink
+        case .pets: .orange
+        case .info: .green
+        case .focus: .red
+        case .claude: Color(red: 0.85, green: 0.47, blue: 0.34)
+        case .appearance: .purple
+        case .permissions: .gray
+        case .updates: .teal
+        case .about: .gray
         }
     }
 }
 
 final class Navigation: ObservableObject {
-    @Published var page: Page = .widgets
+    @Published var page: Page = .layout
 }
 
 // MARK: - Jendela
@@ -67,13 +93,19 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let root = MainView(store: store, dashboard: dashboard, updater: updater, navigation: navigation,
                                 editor: editor)
-            let w = NSWindow(contentViewController: NSHostingController(rootView: root))
+            let host = NSHostingController(rootView: root)
+            // Judul & toolbar SwiftUI diteruskan ke jendela AppKit (gaya System Settings).
+            host.sceneBridgingOptions = [.title, .toolbars]
+            let w = NSWindow(contentViewController: host)
+            w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+            w.toolbarStyle = .unified
             w.title = "Bilah"
-            w.styleMask = [.titled, .closable, .miniaturizable]
             w.isReleasedWhenClosed = false
             w.delegate = self
+            w.contentMinSize = NSSize(width: 860, height: 560)
+            w.setContentSize(NSSize(width: 1080, height: 740))
             w.center()
-            w.setFrameAutosaveName("BilahMainWindow")
+            w.setFrameAutosaveName("BilahWindow")
             window = w
         }
         // Selama jendela terbuka Bilah tampil di Dock dan ⌘-Tab; ditutup = kembali jadi app menu bar.
@@ -101,93 +133,92 @@ struct MainView: View {
     @ObservedObject var editor: LayoutEditorState
 
     var body: some View {
-        VStack(spacing: 0) {
-            Header(dashboard: dashboard, updater: updater, navigation: navigation)
-            VStack(spacing: 10) {
-                let size = BarPreviewView.size(editing: editor.editing)
-                BarPreview(settings: store, editor: editor, dashboard: dashboard)
-                    .frame(width: size.width, height: size.height)
-                LayoutToolbar(store: store, editor: editor)
-                    .frame(width: size.width)
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-            Divider()
-            HStack(spacing: 0) {
-                List(Page.allCases, selection: Binding(get: { navigation.page }, set: { if let p = $0 { navigation.page = p } })) { page in
-                    Label(page.title, systemImage: page.symbol)
-                        .badge(page == .updates && updater.updateAvailable ? Text("Baru") : nil)
-                        .tag(page)
+        NavigationSplitView {
+            List(selection: Binding(get: { navigation.page }, set: { if let p = $0 { navigation.page = p } })) {
+                ForEach(Page.Group.allCases, id: \.self) { group in
+                    Section(group.rawValue) {
+                        ForEach(Page.allCases.filter { $0.group == group }) { page in
+                            SidebarLabel(page: page)
+                                .badge(page == .updates && updater.updateAvailable ? Text("Baru") : nil)
+                                .tag(page)
+                        }
+                    }
                 }
-                .listStyle(.sidebar)
-                .frame(width: 200)
-                Divider()
-                detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+        } detail: {
+            detail
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .navigationTitle(navigation.page.title)
+                .toolbar { toolbar }
         }
-        .frame(width: BarPreviewView.size(editing: false).width + 40, height: 780)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(minWidth: 860, minHeight: 560)
     }
 
     @ViewBuilder private var detail: some View {
         switch navigation.page {
-        case .widgets: WidgetsPage(store: store)
-        case .dashboards: DashboardsPage(store: store)
+        case .layout: LayoutPage(store: store, dashboard: dashboard, editor: editor)
         case .shortcuts: ShortcutsPage(store: store)
         case .music: MusicPage(store: store, music: dashboard.music)
         case .pets: PetsPage(store: store, dashboard: dashboard)
         case .info: InfoPage(store: store, clipboard: dashboard.clipboard)
-        case .general: GeneralPage(store: store)
-        case .pomodoro: PomodoroPage(store: store)
+        case .focus: FocusPage(store: store)
         case .claude: ClaudePage()
+        case .appearance: AppearancePage(store: store)
         case .permissions: PermissionsPage(dashboard: dashboard)
         case .updates: UpdatesPage(updater: updater)
         case .about: AboutPage()
         }
     }
-}
 
-private struct Header: View {
-    @ObservedObject var dashboard: DashboardController
-    @ObservedObject var updater: Updater
-    @ObservedObject var navigation: Navigation
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 44, height: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Bilah").font(.title2.weight(.semibold))
-                Text("Dashboard Touch Bar · v\(Updater.currentVersion)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
             if !dashboard.available {
-                Label("API Touch Bar tidak tersedia di macOS ini", systemImage: "exclamationmark.triangle.fill")
+                Label("Touch Bar tidak tersedia", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
+                    .labelStyle(.titleAndIcon)
             }
             if updater.updateAvailable, let v = updater.latest?.version {
                 Button {
                     navigation.page = .updates
                 } label: {
-                    Label("Update v\(v) tersedia", systemImage: "arrow.down.circle.fill")
+                    Label("Update v\(v)", systemImage: "arrow.down.circle.fill")
+                        .labelStyle(.titleAndIcon)
                 }
-                .buttonStyle(.borderedProminent)
                 .tint(.green)
             }
-            Button(dashboard.isShown ? "Sembunyikan dari Touch Bar" : "Tampilkan di Touch Bar") {
+            Button {
                 dashboard.toggle()
+            } label: {
+                Label(dashboard.isShown ? "Sembunyikan dari Touch Bar" : "Tampilkan di Touch Bar",
+                      systemImage: dashboard.isShown ? "eye.slash" : "eye")
+                    .labelStyle(.titleAndIcon)
             }
             .disabled(!dashboard.available)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
     }
 }
 
-/// Kerangka halaman: judul + keterangan + isi.
+/// Ikon berwarna di sidebar, seperti System Settings.
+private struct SidebarLabel: View {
+    let page: Page
+
+    var body: some View {
+        Label {
+            Text(page.title)
+        } icon: {
+            Image(systemName: page.symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(page.color.gradient))
+        }
+    }
+}
+
+/// Isi halaman: keterangan singkat di atas, lalu isinya. Judul halaman tampil di toolbar.
 private struct PageScaffold<Content: View>: View {
     let title: String
     let subtitle: String
@@ -195,38 +226,55 @@ private struct PageScaffold<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.title2.weight(.semibold))
-                Text(subtitle).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 4)
+            Text(subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 28)
+                .padding(.top, 14)
             content
         }
     }
 }
 
-// MARK: Widget
+// MARK: Tata letak
 
-private struct WidgetsPage: View {
+private struct LayoutPage: View {
     @ObservedObject var store: SettingsStore
+    @ObservedObject var dashboard: DashboardController
+    @ObservedObject var editor: LayoutEditorState
 
     var body: some View {
-        PageScaffold(title: "Widget",
-                     subtitle: "Seret untuk mengubah urutan (atas = kiri), atau pakai \"Atur tata letak\" di bawah preview untuk menyusun dan mengubah lebar langsung di Touch Bar.") {
-            PageBar(store: store)
-                .padding(.horizontal, 24)
-                .padding(.top, 10)
-            List {
-                ForEach(store.order) { kind in
-                    WidgetRow(kind: kind, enabled: Binding(get: { store.isEnabled(kind) },
-                                                           set: { store.setEnabled(kind, $0) }))
-                }
-                .onMove { store.order.move(fromOffsets: $0, toOffset: $1) }
+        VStack(spacing: 0) {
+            // Panel preview tetap di atas: tetap terlihat saat widget di bawahnya dinyalakan/dimatikan.
+            VStack(spacing: 12) {
+                BarPreview(settings: store, editor: editor, dashboard: dashboard)
+                    .frame(maxWidth: .infinity)
+                LayoutToolbar(store: store, editor: editor)
             }
-            .listStyle(.inset)
-            .padding(.horizontal, 12)
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.quaternary.opacity(0.5)))
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 4)
+
+            Form {
+            Section {
+                PageBar(store: store)
+                ForEach(Array(store.order.enumerated()), id: \.element) { index, kind in
+                    WidgetRow(kind: kind,
+                              enabled: Binding(get: { store.isEnabled(kind) }, set: { store.setEnabled(kind, $0) }),
+                              canMoveUp: index > 0, canMoveDown: index < store.order.count - 1) { store.move(kind, by: $0) }
+                }
+            } header: {
+                Text("Widget di halaman \"\(store.pages[min(store.currentPage, store.pages.count - 1)].name)\"")
+            } footer: {
+                Text("Urutan atas ke bawah = kiri ke kanan di Touch Bar.").foregroundStyle(.secondary)
+            }
+
+            PagesSections(store: store)
+            }
+            .formStyle(.grouped)
         }
     }
 }
@@ -234,13 +282,14 @@ private struct WidgetsPage: View {
 private struct WidgetRow: View {
     let kind: WidgetKind
     @Binding var enabled: Bool
+    let canMoveUp: Bool
+    let canMoveDown: Bool
+    let move: (Int) -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(.tertiary)
             ZStack {
-                RoundedRectangle(cornerRadius: 7)
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .fill(Color(nsColor: kind.tint).opacity(enabled ? 0.22 : 0.08))
                 Image(systemName: kind.symbol)
                     .foregroundStyle(Color(nsColor: kind.tint).opacity(enabled ? 1 : 0.4))
@@ -248,15 +297,25 @@ private struct WidgetRow: View {
             .frame(width: 30, height: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(kind.title).fontWeight(.medium)
-                Text(kind.detail).font(.caption).foregroundStyle(.secondary)
+                Text(kind.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             .opacity(enabled ? 1 : 0.55)
             Spacer()
+            HStack(spacing: 2) {
+                Button { move(-1) } label: { Image(systemName: "chevron.up") }
+                    .disabled(!canMoveUp)
+                    .help("Geser ke kiri")
+                Button { move(1) } label: { Image(systemName: "chevron.down") }
+                    .disabled(!canMoveDown)
+                    .help("Geser ke kanan")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
             Toggle("", isOn: $enabled)
                 .labelsHidden()
                 .toggleStyle(.switch)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 2)
     }
 }
 
@@ -737,8 +796,6 @@ struct PageBar: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .fixedSize()
-            } else {
-                Text("Satu halaman").foregroundStyle(.secondary).font(.callout)
             }
             Menu {
                 Button("Tambah halaman") { store.addPage(named: "Halaman \(store.pages.count + 1)") }
@@ -749,7 +806,7 @@ struct PageBar: View {
                 Button("Hapus halaman ini", role: .destructive) { store.removePage(at: store.currentPage) }
                     .disabled(store.pages.count < 2)
             } label: {
-                Label("Halaman", systemImage: "rectangle.stack")
+                Label(store.pages.count > 1 ? "Halaman" : "Tambah halaman", systemImage: "rectangle.stack")
             }
             .fixedSize()
         }
@@ -764,7 +821,7 @@ struct PageBar: View {
     }
 }
 
-private struct DashboardsPage: View {
+private struct PagesSections: View {
     @ObservedObject var store: SettingsStore
 
     private var running: [NSRunningApplication] {
@@ -774,9 +831,8 @@ private struct DashboardsPage: View {
     }
 
     var body: some View {
-        PageScaffold(title: "Halaman & Profil",
-                     subtitle: "Bagi widget ke beberapa halaman, lalu usap Touch Bar ke kiri/kanan (atau ketuk titik di sebelah ‹) untuk pindah. Profil per aplikasi membuka halaman tertentu otomatis saat aplikasi itu aktif.") {
-            Form {
+        Group {
+            Group {
                 Section {
                     ForEach(Array(store.pages.enumerated()), id: \.element.id) { i, page in
                         HStack {
@@ -802,7 +858,7 @@ private struct DashboardsPage: View {
                 } header: {
                     Text("Halaman")
                 } footer: {
-                    Text("Isi tiap halaman diatur di Widget atau Atur tata letak; yang diatur selalu halaman yang sedang dipilih.")
+                    Text("Usap Touch Bar ke kiri/kanan, atau ketuk titik di sebelah ‹, untuk pindah halaman. Yang diatur di atas selalu halaman yang sedang dipilih.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -845,7 +901,6 @@ private struct DashboardsPage: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .formStyle(.grouped)
         }
     }
 
@@ -954,25 +1009,14 @@ private struct InfoPage: View {
 
 // MARK: Umum
 
-private struct GeneralPage: View {
+private struct AppearancePage: View {
     @ObservedObject var store: SettingsStore
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
 
     var body: some View {
-        PageScaffold(title: "Umum", subtitle: "Cara dashboard tampil di Touch Bar.") {
+        PageScaffold(title: "Tampilan", subtitle: "Tema widget, cara dashboard tampil di Touch Bar, dan login.") {
             Form {
-                Section {
-                    Toggle("Ingatkan istirahat", isOn: $store.restReminder)
-                    Stepper("Setelah \(store.restInterval) menit kerja tanpa jeda", value: $store.restInterval, in: 20...120, step: 5)
-                        .disabled(!store.restReminder)
-                } header: {
-                    Text("Pengingat istirahat")
-                } footer: {
-                    Text("Muncul di Touch Bar dan peliharaan ikut menyapa. Kalau kamu diam 5 menit, hitungannya mulai lagi dari nol.")
-                        .foregroundStyle(.secondary)
-                }
-
                 Section("Tema") {
                     Picker("Kapsul widget", selection: $store.pillStyle) {
                         ForEach(PillStyle.allCases) { Text($0.title).tag($0) }
@@ -996,7 +1040,7 @@ private struct GeneralPage: View {
                     }
                 }
 
-                Section("Tampilan") {
+                Section("Touch Bar") {
                     Toggle("Pakai seluruh lebar Touch Bar (sembunyikan Control Strip)", isOn: $store.hideControlStrip)
                     Toggle("Munculkan lagi dashboard tiap pindah aplikasi", isOn: $store.reassertOnAppSwitch)
                     Toggle("Munculkan dashboard saat sesi Pomodoro habis", isOn: $store.showOnPomodoroEnd)
@@ -1030,17 +1074,34 @@ private struct GeneralPage: View {
 
 // MARK: Pomodoro
 
-private struct PomodoroPage: View {
+private struct FocusPage: View {
     @ObservedObject var store: SettingsStore
 
     var body: some View {
-        PageScaffold(title: "Pomodoro",
-                     subtitle: "Ketuk widget untuk mulai atau jeda. Saat dijeda, ketuk ↺ untuk reset. Fokus selesai langsung lanjut istirahat.") {
+        PageScaffold(title: "Fokus",
+                     subtitle: "Timer Pomodoro dan pengingat istirahat.") {
             Form {
-                Section("Durasi") {
+                Section {
                     Stepper("Fokus: \(store.focusMinutes) menit", value: $store.focusMinutes, in: 5...120, step: 5)
                     Stepper("Istirahat: \(store.breakMinutes) menit", value: $store.breakMinutes, in: 1...30)
+                } header: {
+                    Text("Pomodoro")
+                } footer: {
+                    Text("Ketuk widget Pomodoro untuk mulai atau jeda. Saat dijeda, ketuk ↺ untuk reset. Fokus selesai langsung lanjut istirahat.")
+                        .foregroundStyle(.secondary)
                 }
+
+                Section {
+                    Toggle("Ingatkan istirahat", isOn: $store.restReminder)
+                    Stepper("Setelah \(store.restInterval) menit kerja tanpa jeda", value: $store.restInterval, in: 20...120, step: 5)
+                        .disabled(!store.restReminder)
+                } header: {
+                    Text("Pengingat istirahat")
+                } footer: {
+                    Text("Muncul di Touch Bar dan peliharaan ikut menyapa. Kalau kamu diam 5 menit, hitungannya mulai lagi dari nol.")
+                        .foregroundStyle(.secondary)
+                }
+
             }
             .formStyle(.grouped)
         }

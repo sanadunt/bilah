@@ -231,7 +231,7 @@ extension Snapshot {
         editor.editing = editing
         let root = MainView(store: store, dashboard: dashboard, updater: Updater(), navigation: nav, editor: editor)
         let host = NSHostingView(rootView: root)
-        host.frame = NSRect(origin: .zero, size: host.fittingSize)
+        host.frame = NSRect(x: 0, y: 0, width: 1080, height: 740)
         let w = NSWindow(contentRect: host.frame, styleMask: [.titled], backing: .buffered, defer: false)
         w.appearance = NSAppearance(named: .darkAqua)
         w.contentView = host
