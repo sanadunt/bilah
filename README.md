@@ -79,7 +79,8 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
 - **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
 - **Musik**: ikuti apa pun yang sedang diputar, atau satu aplikasi saja; pilih aplikasi yang dibuka saat belum ada musik.
 - **Peliharaan**: jenis, warna, dan nama tiap peliharaan, plus kebiasaan joget dan tidur.
-- **Umum**: lebar penuh atau dengan Control Strip, buka otomatis saat login.
+- **Halaman & Profil**: bagi widget ke beberapa halaman (usap Touch Bar atau ketuk titik di sebelah ‹ untuk pindah), dan atur halaman yang otomatis dibuka per aplikasi.
+- **Umum**: tema (kapsul abu-abu/hitam/garis + warna aksen), lebar penuh atau dengan Control Strip, buka otomatis saat login.
 - **Pomodoro**: durasi fokus dan istirahat.
 - **Claude Code**: pasang hook dengan satu klik dan lihat sesi yang sedang berjalan.
 - **Izin**: status izin macOS dan tombol untuk memintanya.

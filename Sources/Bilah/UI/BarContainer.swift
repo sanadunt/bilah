@@ -84,8 +84,9 @@ final class BarContainerView: NSView {
         var x0: CGFloat = 0
         var x1 = bounds.width
         if let leading {
-            leading.frame = NSRect(x: 0, y: 0, width: Self.edgeWidth, height: Theme.height)
-            x0 = Self.edgeWidth + Self.gap
+            let w = (leading as? WidgetView)?.fixedWidth ?? Self.edgeWidth
+            leading.frame = NSRect(x: 0, y: 0, width: w, height: Theme.height)
+            x0 = w + Self.gap
         }
         if let trailing {
             trailing.frame = NSRect(x: x1 - Self.edgeWidth, y: 0, width: Self.edgeWidth, height: Theme.height)

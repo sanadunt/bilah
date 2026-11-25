@@ -5,6 +5,9 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Widget yang sudah ada sebelum v0.12 (aktif bawaan di halaman "Utama").
+    static let legacyDefaults: Set<WidgetKind> = [.claude, .nowPlaying, .system, .pomodoro, .clock, .controls, .pet]
+
     var title: String {
         switch self {
         case .claude: "Claude Code"
@@ -98,6 +101,46 @@ final class CloseView: WidgetView {
 
     override func drawContent(_ b: NSRect) {
         Draw.symbol(symbol, size: 11, weight: .bold, color: Theme.secondary, center: NSPoint(x: b.midX, y: b.midY))
+    }
+}
+
+/// Awal dashboard: ‹ (kecilkan) dan, kalau halaman > 1, titik halaman (ketuk = halaman berikutnya).
+final class DashboardLeadingView: WidgetView {
+    var onCollapse: (() -> Void)?
+    var onNextPage: (() -> Void)?
+    private let pageCount: Int
+    private let current: Int
+
+    init(pageCount: Int, current: Int) {
+        self.pageCount = pageCount
+        self.current = current
+        super.init(width: pageCount > 1 ? 50 : 30)
+        onTap = { [weak self] p in
+            guard let self else { return }
+            if p.x < 30 { self.onCollapse?() } else { self.onNextPage?() }
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var highlightsWhole: Bool { false }
+
+    override func drawContent(_ b: NSRect) {
+        let onChevron = pressPoint.map { $0.x < 30 }
+        if onChevron == true { Draw.roundedRect(NSRect(x: 0, y: 0, width: 30, height: b.height), radius: Theme.radius, fill: Theme.pillPressed) }
+        Draw.symbol("chevron.left", size: 11, weight: .bold, color: Theme.secondary, center: NSPoint(x: 15, y: b.midY))
+        guard pageCount > 1 else { return }
+        if onChevron == false {
+            Draw.roundedRect(NSRect(x: 30, y: 0, width: b.width - 30, height: b.height), radius: Theme.radius, fill: Theme.pillPressed)
+        }
+        Draw.roundedRect(NSRect(x: 30, y: 7, width: 1, height: b.height - 14), radius: 0.5, fill: Theme.divider)
+        let shown = min(pageCount, 5)
+        let step: CGFloat = 5.5
+        let y0 = b.midY - step * CGFloat(shown - 1) / 2
+        for i in 0..<shown {
+            Draw.circle(NSPoint(x: 40, y: y0 + step * CGFloat(i)), i == current ? 2.4 : 1.5,
+                        i == current ? Theme.text : Theme.faint)
+        }
     }
 }
 

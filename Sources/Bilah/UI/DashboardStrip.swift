@@ -14,6 +14,11 @@ final class DashboardStripView: NSView {
     private var touchStart: (x: CGFloat, offset: CGFloat)?
     private var target: WidgetView?
     private var scrolling = false
+    private var swiping = false
+    private var dragDX: CGFloat = 0
+
+    /// Usap > 50 pt: +1 = halaman berikutnya (usap ke kiri), -1 = sebelumnya (usap ke kanan).
+    var onSwipe: ((Int) -> Void)?
 
     /// Dipanggil tiap tata letak berubah: (lebar tersedia, lebar isi).
     var onLayout: ((CGFloat, CGFloat) -> Void)?
@@ -93,6 +98,8 @@ final class DashboardStripView: NSView {
     private func begin(_ p: NSPoint) {
         touchStart = (p.x, offset)
         scrolling = false
+        swiping = false
+        dragDX = 0
         target = widgets.first { $0.frame.contains(p) }
         target?.beginPress(at: convert(p, to: target))
     }
@@ -100,10 +107,13 @@ final class DashboardStripView: NSView {
     private func move(_ p: NSPoint) {
         guard let start = touchStart else { return }
         let dx = p.x - start.x
-        if !scrolling, isScrollable, abs(dx) > 8 {
-            scrolling = true
-            target?.cancelPress()
-            target = nil
+        dragDX = dx
+        if !scrolling, !swiping, abs(dx) > 8 {
+            if isScrollable { scrolling = true } else { swiping = onSwipe != nil }
+            if scrolling || swiping {
+                target?.cancelPress()
+                target = nil
+            }
         }
         guard scrolling else { return }
         offset = min(maxOffset, max(0, start.offset - dx))
@@ -111,6 +121,14 @@ final class DashboardStripView: NSView {
     }
 
     private func end(cancelled: Bool) {
+        // Usap ke kiri = halaman berikutnya, ke kanan = sebelumnya. Kalau strip bisa digeser,
+        // pindah halaman hanya saat usapan dimulai di ujung dan terus melewatinya.
+        if !cancelled, let start = touchStart, abs(dragDX) > 50 {
+            let atStart = start.offset <= 0.5 && dragDX > 0
+            let atEnd = start.offset >= maxOffset - 0.5 && dragDX < 0
+            if swiping || (scrolling && (atStart || atEnd)) { onSwipe?(dragDX < 0 ? 1 : -1) }
+        }
+        swiping = false
         if let t = target { cancelled ? t.cancelPress() : t.endPress() }
         target = nil
         touchStart = nil

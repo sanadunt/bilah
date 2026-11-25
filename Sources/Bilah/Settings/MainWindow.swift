@@ -3,13 +3,14 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case widgets, shortcuts, music, pets, general, pomodoro, claude, permissions, updates, about
+    case widgets, dashboards, shortcuts, music, pets, general, pomodoro, claude, permissions, updates, about
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .widgets: "Widget"
+        case .dashboards: "Halaman & Profil"
         case .shortcuts: "Pintasan"
         case .music: "Musik"
         case .pets: "Peliharaan"
@@ -25,6 +26,7 @@ enum Page: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .widgets: "square.grid.3x1.below.line.grid.1x2"
+        case .dashboards: "rectangle.stack"
         case .shortcuts: "square.grid.2x2"
         case .music: "music.note"
         case .pets: "pawprint.fill"
@@ -128,6 +130,7 @@ struct MainView: View {
     @ViewBuilder private var detail: some View {
         switch navigation.page {
         case .widgets: WidgetsPage(store: store)
+        case .dashboards: DashboardsPage(store: store)
         case .shortcuts: ShortcutsPage(store: store)
         case .music: MusicPage(store: store, music: dashboard.music)
         case .pets: PetsPage(store: store, dashboard: dashboard)
@@ -209,6 +212,9 @@ private struct WidgetsPage: View {
     var body: some View {
         PageScaffold(title: "Widget",
                      subtitle: "Seret untuk mengubah urutan (atas = kiri), atau pakai \"Atur tata letak\" di bawah preview untuk menyusun dan mengubah lebar langsung di Touch Bar.") {
+            PageBar(store: store)
+                .padding(.horizontal, 24)
+                .padding(.top, 10)
             List {
                 ForEach(store.order) { kind in
                     WidgetRow(kind: kind, enabled: Binding(get: { store.isEnabled(kind) },
@@ -639,6 +645,144 @@ private struct PetPortrait: NSViewRepresentable {
     func updateNSView(_ v: Portrait, context: Context) { v.config = config }
 }
 
+// MARK: Halaman & Profil
+
+/// Pemilih halaman + menu tambah/ganti nama/hapus. Dipakai di halaman Widget dan di bawah preview.
+struct PageBar: View {
+    @ObservedObject var store: SettingsStore
+    @State private var renaming = false
+    @State private var newName = ""
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if store.pages.count > 1 {
+                Picker("Halaman", selection: Binding(get: { store.currentPage }, set: { store.showPage($0) })) {
+                    ForEach(Array(store.pages.enumerated()), id: \.element.id) { i, page in Text(page.name).tag(i) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            } else {
+                Text("Satu halaman").foregroundStyle(.secondary).font(.callout)
+            }
+            Menu {
+                Button("Tambah halaman") { store.addPage(named: "Halaman \(store.pages.count + 1)") }
+                Button("Ganti nama halaman ini…") {
+                    newName = store.pages[store.currentPage].name
+                    renaming = true
+                }
+                Button("Hapus halaman ini", role: .destructive) { store.removePage(at: store.currentPage) }
+                    .disabled(store.pages.count < 2)
+            } label: {
+                Label("Halaman", systemImage: "rectangle.stack")
+            }
+            .fixedSize()
+        }
+        .alert("Ganti nama halaman", isPresented: $renaming) {
+            TextField("Nama", text: $newName)
+            Button("Simpan") {
+                let name = newName.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty { store.pages[store.currentPage].name = name }
+            }
+            Button("Batal", role: .cancel) {}
+        }
+    }
+}
+
+private struct DashboardsPage: View {
+    @ObservedObject var store: SettingsStore
+
+    private var running: [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil && $0.bundleIdentifier != Bundle.main.bundleIdentifier }
+            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+    }
+
+    var body: some View {
+        PageScaffold(title: "Halaman & Profil",
+                     subtitle: "Bagi widget ke beberapa halaman, lalu usap Touch Bar ke kiri/kanan (atau ketuk titik di sebelah ‹) untuk pindah. Profil per aplikasi membuka halaman tertentu otomatis saat aplikasi itu aktif.") {
+            Form {
+                Section {
+                    ForEach(Array(store.pages.enumerated()), id: \.element.id) { i, page in
+                        HStack {
+                            Image(systemName: i == store.currentPage ? "largecircle.fill.circle" : "circle")
+                                .foregroundStyle(i == store.currentPage ? Color.accentColor : .secondary)
+                                .onTapGesture { store.showPage(i) }
+                            TextField("Nama", text: Binding(get: { store.pages[i].name }, set: { store.pages[i].name = $0 }))
+                                .textFieldStyle(.plain)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Text("\(page.order.filter { !page.disabled.contains($0) }.count) widget")
+                                .foregroundStyle(.secondary)
+                            Button { store.removePage(at: i) } label: { Image(systemName: "trash") }
+                                .buttonStyle(.borderless)
+                                .disabled(store.pages.count < 2)
+                        }
+                    }
+                    Button {
+                        store.addPage(named: "Halaman \(store.pages.count + 1)")
+                    } label: {
+                        Label("Tambah halaman", systemImage: "plus")
+                    }
+                } header: {
+                    Text("Halaman")
+                } footer: {
+                    Text("Isi tiap halaman diatur di Widget atau Atur tata letak; yang diatur selalu halaman yang sedang dipilih.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Toggle("Ganti halaman otomatis sesuai aplikasi yang aktif", isOn: $store.autoPageSwitch)
+                    ForEach(store.appPages.keys.sorted(), id: \.self) { bundleID in
+                        HStack {
+                            if let icon = MusicApps.icon(bundleID) { Image(nsImage: icon).resizable().frame(width: 20, height: 20) }
+                            Text(MusicApps.name(bundleID))
+                            Spacer()
+                            Picker("", selection: Binding(get: { store.appPages[bundleID] ?? store.pages[0].id },
+                                                          set: { store.appPages[bundleID] = $0 })) {
+                                ForEach(store.pages) { Text($0.name).tag($0.id) }
+                            }
+                            .labelsHidden()
+                            .frame(width: 160)
+                            Button { store.appPages[bundleID] = nil } label: { Image(systemName: "trash") }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                    Menu {
+                        ForEach(running, id: \.processIdentifier) { app in
+                            Button(app.localizedName ?? app.bundleIdentifier!) {
+                                store.appPages[app.bundleIdentifier!] = store.pages[min(1, store.pages.count - 1)].id
+                            }
+                        }
+                        Divider()
+                        Button("Pilih aplikasi lain…", action: pickApp)
+                    } label: {
+                        Label("Tambah aplikasi", systemImage: "plus.app")
+                    }
+                    .fixedSize()
+                    .disabled(store.pages.count < 2)
+                } header: {
+                    Text("Profil per aplikasi")
+                } footer: {
+                    Text(store.pages.count < 2
+                         ? "Buat minimal dua halaman dulu."
+                         : "Contoh: halaman \"Kerja\" dengan tombol perintah build untuk Godot atau Xcode. Saat pindah ke aplikasi tanpa profil, halaman kembali seperti semula.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    private func pickApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        guard panel.runModal() == .OK, let url = panel.url, let id = Bundle(url: url)?.bundleIdentifier else { return }
+        store.appPages[id] = store.pages[min(1, store.pages.count - 1)].id
+    }
+}
+
 // MARK: Umum
 
 private struct GeneralPage: View {
@@ -649,6 +793,29 @@ private struct GeneralPage: View {
     var body: some View {
         PageScaffold(title: "Umum", subtitle: "Cara dashboard tampil di Touch Bar.") {
             Form {
+                Section("Tema") {
+                    Picker("Kapsul widget", selection: $store.pillStyle) {
+                        ForEach(PillStyle.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    HStack {
+                        Text("Warna aksen")
+                        Spacer()
+                        ForEach(AccentChoice.allCases) { choice in
+                            Button {
+                                store.accent = choice
+                            } label: {
+                                Circle()
+                                    .fill(Color(nsColor: choice.color))
+                                    .overlay(Circle().stroke(store.accent == choice ? Color.primary : .clear, lineWidth: 2).padding(-3))
+                                    .frame(width: 18, height: 18)
+                            }
+                            .buttonStyle(.plain)
+                            .help(choice.title)
+                        }
+                    }
+                }
+
                 Section("Tampilan") {
                     Toggle("Pakai seluruh lebar Touch Bar (sembunyikan Control Strip)", isOn: $store.hideControlStrip)
                     Toggle("Munculkan lagi dashboard tiap pindah aplikasi", isOn: $store.reassertOnAppSwitch)

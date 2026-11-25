@@ -76,7 +76,10 @@ final class BarPreviewView: NSView {
         } else {
             let strip = DashboardStripView(widgets: settings.visibleWidgets.map(dashboard.makePreviewView),
                                            mode: settings.spacing)
-            let bar = BarContainerView(leading: CloseView(), content: strip, width: width)
+            strip.onSwipe = { settings.turnPage($0) }
+            let leading = DashboardLeadingView(pageCount: settings.pages.count, current: settings.currentPage)
+            leading.onNextPage = { settings.turnPage(1) }
+            let bar = BarContainerView(leading: leading, content: strip, width: width)
             bar.frame = NSRect(x: Self.inset, y: Self.inset, width: width, height: Theme.height)
             addSubview(bar)
             bar.layoutSubtreeIfNeeded()
@@ -112,6 +115,7 @@ struct LayoutToolbar: View {
         if editor.editing {
             VStack(spacing: 8) {
                 HStack(spacing: 14) {
+                    PageBar(store: store)
                     capacity
                     Spacer()
                     Picker("Jarak", selection: $store.spacing) {
@@ -141,6 +145,7 @@ struct LayoutToolbar: View {
             }
         } else {
             HStack(spacing: 12) {
+                if store.pages.count > 1 { PageBar(store: store) }
                 Text("Preview langsung. Widget di sini bisa diklik seperti di Touch Bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

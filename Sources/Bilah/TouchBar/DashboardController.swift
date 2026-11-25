@@ -264,10 +264,12 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         item.visibilityPriority = .high
         switch id {
         case Self.dashboardID:
-            let close = CloseView(symbol: "chevron.left")
-            close.onTap = { [weak self] _ in self?.hide() }
+            let close = DashboardLeadingView(pageCount: settings.pages.count, current: settings.currentPage)
+            close.onCollapse = { [weak self] in self?.hide() }
+            close.onNextPage = { [weak self] in self?.settings.turnPage(1) }
             let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap(makeSizedView),
                                            mode: settings.spacing)
+            strip.onSwipe = { [weak self] in self?.settings.turnPage($0) }
             strip.onLayout = { available, content in LayoutReport.write(available: available, content: content) }
             let container = BarContainerView(leading: close, content: strip, width: regionWidth)
             dashboardContainer = container
@@ -326,7 +328,25 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     }
 
     @objc private func appActivated(_ note: Notification) {
+        let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+        applyAppProfile(app?.bundleIdentifier)
         if isShown && settings.reassertOnAppSwitch { show() }
+    }
+
+    /// Halaman yang tampil sebelum profil aplikasi mengambil alih, untuk dikembalikan setelahnya.
+    private var pageBeforeProfile: Int?
+
+    /// Profil per aplikasi: buka halaman milik aplikasi yang aktif; kembali ke halaman semula saat pindah ke aplikasi lain.
+    private func applyAppProfile(_ bundleID: String?) {
+        guard settings.autoPageSwitch, settings.pages.count > 1, bundleID != Bundle.main.bundleIdentifier else { return }
+        if let id = bundleID, let pageID = settings.appPages[id],
+           let index = settings.pages.firstIndex(where: { $0.id == pageID }) {
+            if pageBeforeProfile == nil { pageBeforeProfile = settings.currentPage }
+            settings.showPage(index)
+        } else if let back = pageBeforeProfile {
+            pageBeforeProfile = nil
+            settings.showPage(back)
+        }
     }
 
     private func settingsChanged() {

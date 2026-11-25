@@ -67,8 +67,11 @@ enum ShortcutButton {
         let tint = builtin?.tint ?? Theme.text
 
         if pill {
-            let fill = active ? tint.withAlphaComponent(0.28) : Theme.pill
-            Draw.roundedRect(r, radius: Theme.radius, fill: pressed ? Theme.pillPressed : fill)
+            if active, !pressed {
+                Draw.roundedRect(r, radius: Theme.radius, fill: tint.withAlphaComponent(0.28))
+            } else {
+                Draw.pill(r, pressed: pressed)
+            }
         } else if pressed {
             Draw.circle(NSPoint(x: r.midX, y: r.midY), 13, Theme.pillPressed)
         } else if active {
@@ -476,7 +479,7 @@ final class SliderView: WidgetView {
     }
 
     override func drawContent(_ b: NSRect) {
-        Draw.roundedRect(sliderRect, radius: Theme.radius, fill: Theme.pill)
+        Draw.pill(sliderRect)
         if pressed == .icon { Draw.circle(iconCenter, 13, Theme.pillPressed) }
         Draw.symbol(kind.symbol(value: value, muted: muted), size: 14, weight: .semibold,
                     color: muted ? Theme.secondary : kind.tint, center: iconCenter)
@@ -506,7 +509,7 @@ final class SliderView: WidgetView {
             (.close, closeRect, "xmark", false),
         ]
         for (part, rect, symbol, atLimit) in buttons {
-            Draw.roundedRect(rect, radius: Theme.radius, fill: pressed == part ? Theme.pillPressed : Theme.pill)
+            Draw.pill(rect, pressed: pressed == part)
             Draw.symbol(symbol, size: part == .close ? 11 : 12, weight: .bold,
                         color: atLimit ? Theme.faint : (part == .close ? Theme.secondary : Theme.text),
                         center: NSPoint(x: rect.midX, y: rect.midY))

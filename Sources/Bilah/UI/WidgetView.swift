@@ -42,7 +42,7 @@ class WidgetView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let pressed = highlightsWhole && pressPoint != nil
-        Draw.roundedRect(bounds, radius: Theme.radius, fill: pressed ? Theme.pillPressed : Theme.pill)
+        Draw.pill(bounds, pressed: pressed)
         drawContent(bounds)
     }
 
