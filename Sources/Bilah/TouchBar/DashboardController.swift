@@ -118,10 +118,18 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             TouchBarRegion.measure { [weak self] measured in
                 guard let self, let measured, measured > 200, hide == self.settings.hideControlStrip else { return }
-                if abs(measured - self.regionWidth) > 0.5 { TouchBarRegion.save(measured, hideControlStrip: hide) }
-                self.dashboardContainer?.width = measured
-                self.overlayContainer?.width = measured
                 LayoutReport.region = measured
+                guard abs(measured - self.regionWidth) > 0.5 else { return }
+                TouchBarRegion.save(measured, hideControlStrip: hide)
+                // Touch Bar tidak selalu menata ulang item yang sudah tampil, jadi bangun ulang dengan lebar yang benar.
+                if self.overlay == nil, self.isShown {
+                    if let old = self.touchBar { PrivateTouchBar.dismiss(old) }
+                    self.rebuild()
+                    self.show()
+                } else {
+                    self.dashboardContainer?.width = measured
+                    self.overlayContainer?.width = measured
+                }
             }
         }
     }
