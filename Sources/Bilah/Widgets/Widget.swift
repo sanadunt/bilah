@@ -12,7 +12,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .system: "Sistem (CPU, RAM, baterai)"
         case .pomodoro: "Pomodoro"
         case .clock: "Jam"
-        case .controls: "Kontrol (layar, volume, screenshot, notif)"
+        case .controls: "Pintasan cepat"
         }
     }
 
@@ -34,7 +34,7 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .system: "Beban CPU, pemakaian RAM, dan baterai."
         case .pomodoro: "Timer fokus dan istirahat. Ketuk untuk mulai/jeda."
         case .clock: "Jam dan tanggal."
-        case .controls: "Brightness, volume, screenshot, dan Notification Center."
+        case .controls: "Tombol favorit yang kamu pin, plus ⋯ untuk semua pintasan."
         }
     }
 

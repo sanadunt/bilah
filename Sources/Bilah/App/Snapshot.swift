@@ -45,9 +45,9 @@ enum Snapshot {
         let pomodoro = PomodoroView()
         pomodoro.display = PomodoroDisplay(phase: .focus, state: .running, remaining: 18 * 60 + 42, total: 25 * 60)
 
-        let controls = ControlsView()
-        controls.brightness = 0.62
-        controls.volume = 0.45
+        let controls = ControlsView(actions: [.builtin(.brightness), .builtin(.volume), .builtin(.screenshot),
+                                              .builtin(.notificationCenter)])
+        controls.states = demoStates
 
         // Urutan default + prioritas: kalau kepenuhan, yang prioritasnya paling rendah (jam) hilang duluan.
         var views: [(WidgetView, NSTouchBarItem.Priority)] = [
@@ -73,6 +73,26 @@ enum Snapshot {
         sliderCanvas.addSubview(slider)
         let sliderPath = (path as NSString).deletingPathExtension + "-slider.png"
         render(sliderCanvas, to: sliderPath)
+
+        // Panel semua pintasan.
+        let panelCanvas = Canvas(frame: canvas.frame)
+        layout([CloseView()], in: panelCanvas, inset: inset, barWidth: barWidth)
+        let panel = ShortcutPanelView(actions: BuiltinAction.allCases.filter { $0 != .inputSource }.map { .builtin($0) },
+                                      width: barWidth - 38)
+        panel.states = demoStates
+        panel.frame = NSRect(x: inset + 38, y: inset, width: panel.fixedWidth, height: Theme.height)
+        panelCanvas.addSubview(panel)
+        render(panelCanvas, to: (path as NSString).deletingPathExtension + "-panel.png")
+    }
+
+    private static var demoStates: ShortcutStates {
+        var s = ShortcutStates()
+        s.brightness = 0.62
+        s.keyboard = 0.3
+        s.volume = 0.45
+        s.nightShift = true
+        s.keepAwake = true
+        return s
     }
 
     /// Taruh view berurutan; sisa ruang dibagi rata sebagai jarak (meniru flexibleSpace).

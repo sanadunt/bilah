@@ -3,13 +3,14 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case widgets, general, pomodoro, claude, permissions, updates, about
+    case widgets, shortcuts, general, pomodoro, claude, permissions, updates, about
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .widgets: "Widget"
+        case .shortcuts: "Pintasan"
         case .general: "Umum"
         case .pomodoro: "Pomodoro"
         case .claude: "Claude Code"
@@ -22,6 +23,7 @@ enum Page: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .widgets: "square.grid.3x1.below.line.grid.1x2"
+        case .shortcuts: "square.grid.2x2"
         case .general: "gearshape"
         case .pomodoro: "timer"
         case .claude: "sparkle"
@@ -118,6 +120,7 @@ struct MainView: View {
     @ViewBuilder private var detail: some View {
         switch navigation.page {
         case .widgets: WidgetsPage(store: store)
+        case .shortcuts: ShortcutsPage(store: store)
         case .general: GeneralPage(store: store)
         case .pomodoro: PomodoroPage(store: store)
         case .claude: ClaudePage()
@@ -235,6 +238,161 @@ private struct WidgetRow: View {
                 .toggleStyle(.switch)
         }
         .padding(.vertical, 5)
+    }
+}
+
+// MARK: Pintasan
+
+private struct ShortcutsPage: View {
+    @ObservedObject var store: SettingsStore
+    @State private var userShortcuts: [String] = []
+    @State private var loadingShortcuts = true
+
+    private var pinnedCount: Int { store.shortcuts.filter { $0.pinned && $0.enabled }.count }
+
+    var body: some View {
+        PageScaffold(title: "Pintasan",
+                     subtitle: "Semua tombol Touch Bar bawaan Mac plus tambahan. Pin (📌) = tampil di widget Pintasan cepat; sisanya ada di panel ⋯. Seret untuk mengubah urutan.") {
+            HStack(spacing: 10) {
+                Button {
+                    addApps()
+                } label: {
+                    Label("Tambah aplikasi…", systemImage: "plus.app")
+                }
+                Menu {
+                    if loadingShortcuts {
+                        Text("Memuat Shortcuts…")
+                    } else if userShortcuts.isEmpty {
+                        Text("Belum ada Shortcut di app Shortcuts")
+                    } else {
+                        ForEach(userShortcuts, id: \.self) { name in
+                            Button(name) { store.addShortcut(.shortcut(name: name)) }
+                                .disabled(store.shortcuts.contains { $0.id == ShortcutAction.shortcut(name: name).id })
+                        }
+                    }
+                } label: {
+                    Label("Tambah Shortcut", systemImage: "wand.and.stars")
+                }
+                .fixedSize()
+                Spacer()
+                Text("\(pinnedCount)/\(ShortcutEntry.maxPinned) di-pin")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+
+            List {
+                ForEach($store.shortcuts) { $entry in
+                    ShortcutRow(entry: $entry,
+                                canPin: pinnedCount < ShortcutEntry.maxPinned,
+                                onDelete: entry.action.builtin == nil ? { remove(entry.id) } : nil)
+                }
+                .onMove { store.shortcuts.move(fromOffsets: $0, toOffset: $1) }
+            }
+            .listStyle(.inset)
+            .padding(.horizontal, 12)
+        }
+        .onAppear(perform: loadShortcuts)
+    }
+
+    private func loadShortcuts() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let list = SystemShortcuts.listShortcuts()
+            DispatchQueue.main.async {
+                userShortcuts = list
+                loadingShortcuts = false
+            }
+        }
+    }
+
+    private func addApps() {
+        let panel = NSOpenPanel()
+        panel.title = "Pilih aplikasi untuk Touch Bar"
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = true
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls { store.addShortcut(.app(path: url.path)) }
+    }
+
+    private func remove(_ id: String) {
+        store.shortcuts.removeAll { $0.id == id }
+    }
+}
+
+private struct ShortcutRow: View {
+    @Binding var entry: ShortcutEntry
+    let canPin: Bool
+    let onDelete: (() -> Void)?
+
+    private var available: Bool { entry.action.isAvailable }
+
+    private var caption: String {
+        guard available else {
+            if let b = entry.action.builtin { return b.unavailableReason }
+            return "Tidak ditemukan"
+        }
+        var parts = [entry.action.subtitle]
+        if let b = entry.action.builtin {
+            if b.slider != nil { parts.append("slider") }
+            if b.isToggle { parts.append("nyala/mati") }
+            if b.needsAccessibility { parts.append("butuh Aksesibilitas") }
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+            ShortcutIcon(action: entry.action)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.action.title).fontWeight(.medium)
+                Text(caption).font(.caption).foregroundStyle(.secondary)
+            }
+            .opacity(entry.enabled && available ? 1 : 0.5)
+            Spacer()
+            if let onDelete {
+                Button(action: onDelete) { Image(systemName: "trash") }
+                    .buttonStyle(.borderless)
+                    .help("Hapus dari Bilah")
+            }
+            Button {
+                entry.pinned.toggle()
+            } label: {
+                Image(systemName: entry.pinned ? "pin.fill" : "pin")
+                    .foregroundStyle(entry.pinned ? Color.orange : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .disabled(!available || (!entry.pinned && !canPin))
+            .help(entry.pinned ? "Lepas dari Pintasan cepat" : "Pin ke Pintasan cepat")
+            Toggle("", isOn: $entry.enabled)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(!available)
+        }
+        .padding(.vertical, 3)
+    }
+}
+
+private struct ShortcutIcon: View {
+    let action: ShortcutAction
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 7).fill(Color.black.opacity(0.35))
+            switch action {
+            case .app(let path):
+                Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable().frame(width: 22, height: 22)
+            case .shortcut:
+                Image(systemName: "wand.and.stars").foregroundStyle(.purple)
+            case .builtin(let b):
+                Image(systemName: b.symbol)
+                    .foregroundStyle(Color(nsColor: b.tint == Theme.text ? .white : b.tint))
+            }
+        }
+        .frame(width: 30, height: 30)
     }
 }
 
@@ -426,7 +584,7 @@ private struct PermissionsPage: View {
                                       ? "API Touch Bar tersedia. Pastikan pengaturan Touch Bar memakai \"App Controls\"."
                                       : "API Touch Bar privat tidak ditemukan di macOS ini.")
                     PermissionRow(ok: axTrusted, title: "Aksesibilitas",
-                                  detail: "Untuk tombol 🔔 yang membuka Notification Center.") {
+                                  detail: "Untuk tombol media, Spotlight, emoji, Notification Center, dan Control Center.") {
                         if !axTrusted {
                             Button("Minta izin") {
                                 SystemActions.requestAccessibility()

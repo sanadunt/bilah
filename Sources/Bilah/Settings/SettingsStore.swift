@@ -11,6 +11,9 @@ final class SettingsStore: ObservableObject {
     @Published var showOnPomodoroEnd: Bool { didSet { defaults.set(showOnPomodoroEnd, forKey: "showOnPomodoroEnd") } }
     @Published var focusMinutes: Int { didSet { defaults.set(focusMinutes, forKey: "focusMinutes") } }
     @Published var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: "breakMinutes") } }
+    @Published var shortcuts: [ShortcutEntry] {
+        didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -22,13 +25,42 @@ final class SettingsStore: ObservableObject {
         showOnPomodoroEnd = defaults.object(forKey: "showOnPomodoroEnd") as? Bool ?? true
         focusMinutes = defaults.object(forKey: "focusMinutes") as? Int ?? 25
         breakMinutes = defaults.object(forKey: "breakMinutes") as? Int ?? 5
+        shortcuts = Self.loadShortcuts(defaults)
+    }
+
+    /// Pintasan tersimpan + tombol bawaan baru (dari versi Bilah yang lebih baru) ditambahkan di belakang.
+    private static func loadShortcuts(_ defaults: UserDefaults) -> [ShortcutEntry] {
+        guard let data = defaults.data(forKey: "shortcuts"),
+              let saved = try? JSONDecoder().decode([ShortcutEntry].self, from: data) else { return ShortcutEntry.defaults }
+        let known = Set(saved.map(\.id))
+        return saved + ShortcutEntry.defaults.filter { !known.contains($0.id) }.map {
+            var e = $0
+            e.pinned = false
+            return e
+        }
+    }
+
+    /// Tombol di widget Pintasan cepat.
+    var pinnedActions: [ShortcutAction] {
+        shortcuts.filter { $0.enabled && $0.pinned && $0.action.isAvailable }.prefix(ShortcutEntry.maxPinned).map(\.action)
+    }
+
+    /// Tombol di panel ⋯.
+    var panelActions: [ShortcutAction] {
+        shortcuts.filter { $0.enabled && $0.action.isAvailable }.map(\.action)
+    }
+
+    func addShortcut(_ action: ShortcutAction) {
+        guard !shortcuts.contains(where: { $0.id == action.id }) else { return }
+        shortcuts.append(ShortcutEntry(action: action, enabled: true, pinned: false))
     }
 
     var visibleWidgets: [WidgetKind] { order.filter { !disabled.contains($0) } }
 
     /// Berubah hanya kalau isi/urutan bar berubah, supaya bar tidak dibangun ulang untuk hal kecil.
     var layoutSignature: String {
-        visibleWidgets.map(\.rawValue).joined(separator: ",") + "|\(hideControlStrip)"
+        visibleWidgets.map(\.rawValue).joined(separator: ",") + "|\(hideControlStrip)|"
+            + pinnedActions.map(\.id).joined(separator: ",")
     }
 
     func isEnabled(_ kind: WidgetKind) -> Bool { !disabled.contains(kind) }

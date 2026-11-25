@@ -119,9 +119,17 @@ enum SystemActions {
     }
 
     /// Buka Notification Center dengan "mengklik" jam di menu bar lewat Accessibility API.
-    /// Dicari lewat AXIdentifier, jadi tidak bergantung bahasa sistem. Butuh izin Aksesibilitas.
     @discardableResult
-    static func openNotificationCenter() -> Bool {
+    static func openNotificationCenter() -> Bool { pressMenuExtra("com.apple.menuextra.clock") }
+
+    /// Buka Control Center (Focus, Wi-Fi, Bluetooth, dll).
+    @discardableResult
+    static func openControlCenter() -> Bool { pressMenuExtra("com.apple.menuextra.controlcenter") }
+
+    /// "Klik" item menu bar milik ControlCenter berdasarkan AXIdentifier, jadi tidak bergantung bahasa sistem.
+    /// Butuh izin Aksesibilitas; kalau belum ada, dialognya diminta dan hasilnya false.
+    @discardableResult
+    static func pressMenuExtra(_ identifier: String) -> Bool {
         guard hasAccessibility else {
             requestAccessibility()
             return false
@@ -136,7 +144,7 @@ enum SystemActions {
         for item in items {
             var ident: CFTypeRef?
             AXUIElementCopyAttributeValue(item, "AXIdentifier" as CFString, &ident)
-            if ident as? String == "com.apple.menuextra.clock" {
+            if ident as? String == identifier {
                 return AXUIElementPerformAction(item, kAXPressAction as CFString) == .success
             }
         }

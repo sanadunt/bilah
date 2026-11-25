@@ -5,8 +5,9 @@ import Combine
 final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject {
     static let trayID = NSTouchBarItem.Identifier("local.bilah.tray")
     static let closeID = NSTouchBarItem.Identifier("local.bilah.close")
-    static let sliderCloseID = NSTouchBarItem.Identifier("local.bilah.slider.close")
+    static let overlayCloseID = NSTouchBarItem.Identifier("local.bilah.overlay.close")
     static let sliderID = NSTouchBarItem.Identifier("local.bilah.slider")
+    static let panelID = NSTouchBarItem.Identifier("local.bilah.panel")
 
     let settings: SettingsStore
     let available = PrivateTouchBar.isAvailable
@@ -16,14 +17,21 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 
     private let claude = ClaudeWidget()
     private let pomodoro: PomodoroWidget
-    private let controls = ControlsWidget()
+    private let runner = ShortcutRunner()
+    private let controls: ControlsWidget
     private let widgets: [WidgetKind: Widget]
 
-    // Mode slider (brightness/volume) yang sementara menggantikan dashboard.
-    private var sliderBar: NSTouchBar?
-    private var sliderKind: SliderKind?
+    /// Bar sementara yang menggantikan dashboard: slider (layar/keyboard/volume) atau panel semua pintasan.
+    private enum Overlay {
+        case slider(SliderKind)
+        case panel
+    }
+
+    private var overlay: Overlay?
+    private var overlayBar: NSTouchBar?
     private weak var sliderView: SliderView?
-    private var sliderIdleTimer: Timer?
+    private weak var panelView: ShortcutPanelView?
+    private var overlayIdleTimer: Timer?
 
     private var touchBar: NSTouchBar?
     private var trayItem: NSCustomTouchBarItem?
@@ -35,6 +43,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     init(settings: SettingsStore) {
         self.settings = settings
         pomodoro = PomodoroWidget(settings: settings)
+        controls = ControlsWidget(settings: settings, runner: runner)
         widgets = [
             .claude: claude,
             .nowPlaying: NowPlayingWidget(),
@@ -44,7 +53,8 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             .controls: controls,
         ]
         super.init()
-        controls.onOpenSlider = { [weak self] kind in self?.openSlider(kind) }
+        runner.onOpenSlider = { [weak self] kind in self?.openOverlay(.slider(kind)) }
+        controls.onOpenPanel = { [weak self] in self?.openOverlay(.panel) }
     }
 
     func start() {
@@ -82,6 +92,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 
     func stop() {
         timer?.invalidate()
+        if let bar = overlayBar { PrivateTouchBar.dismiss(bar) }
         if let tb = touchBar { PrivateTouchBar.dismiss(tb) }
         if let item = trayItem {
             PrivateTouchBar.setControlStripPresence(Self.trayID, false)
@@ -128,49 +139,58 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 
     func refreshNow() { tick() }
 
-    // MARK: Slider brightness/volume
+    // MARK: Overlay (slider dan panel pintasan)
 
-    private func openSlider(_ kind: SliderKind) {
-        guard available, kind.isAvailable else { return }
-        sliderKind = kind
+    private func openOverlay(_ new: Overlay) {
+        guard available else { return }
+        if case .slider(let kind) = new, !kind.isAvailable { return }
+        if let old = overlayBar { PrivateTouchBar.dismiss(old) }
+        overlay = new
         let tb = NSTouchBar()
         tb.delegate = self
-        tb.defaultItemIdentifiers = [Self.sliderCloseID, .fixedSpaceSmall, Self.sliderID, .flexibleSpace]
-        sliderBar = tb
+        switch new {
+        case .slider: tb.defaultItemIdentifiers = [Self.overlayCloseID, .fixedSpaceSmall, Self.sliderID, .flexibleSpace]
+        case .panel: tb.defaultItemIdentifiers = [Self.overlayCloseID, .fixedSpaceSmall, Self.panelID]
+        }
+        overlayBar = tb
         PrivateTouchBar.present(tb, placement: settings.hideControlStrip ? 1 : 0, trayID: Self.trayID)
-        bumpSliderIdle()
+        bumpOverlayIdle()
     }
 
-    /// Slider menutup sendiri setelah 3,5 detik tanpa sentuhan, seperti slider bawaan macOS.
-    private func bumpSliderIdle() {
-        sliderIdleTimer?.invalidate()
-        let t = Timer(timeInterval: 3.5, target: self, selector: #selector(sliderIdle), userInfo: nil, repeats: false)
+    /// Slider menutup sendiri setelah 3,5 detik tanpa sentuhan (seperti bawaan macOS), panel setelah 10 detik.
+    private func bumpOverlayIdle() {
+        overlayIdleTimer?.invalidate()
+        let seconds: TimeInterval
+        if case .panel = overlay { seconds = 10 } else { seconds = 3.5 }
+        let t = Timer(timeInterval: seconds, target: self, selector: #selector(overlayIdle), userInfo: nil, repeats: false)
         RunLoop.main.add(t, forMode: .common)
-        sliderIdleTimer = t
+        overlayIdleTimer = t
     }
 
-    @objc private func sliderIdle() {
-        if sliderView?.isTracking == true { bumpSliderIdle() } else { closeSlider() }
+    @objc private func overlayIdle() {
+        if sliderView?.isTracking == true { bumpOverlayIdle() } else { closeOverlay() }
     }
 
-    private func closeSlider() {
-        sliderIdleTimer?.invalidate()
-        sliderIdleTimer = nil
-        guard let bar = sliderBar else { return }
-        sliderBar = nil
-        sliderKind = nil
+    private func closeOverlay() {
+        overlayIdleTimer?.invalidate()
+        overlayIdleTimer = nil
+        guard let bar = overlayBar else { return }
+        overlayBar = nil
+        overlay = nil
         PrivateTouchBar.dismiss(bar)
         if isShown { show() } else { PrivateTouchBar.setControlStripPresence(Self.trayID, true) }
     }
 
+    private var overlayWidth: CGFloat { settings.hideControlStrip ? 940 : 700 }
+
     private func makeSliderView(_ kind: SliderKind) -> SliderView {
-        let v = SliderView(kind: kind, width: settings.hideControlStrip ? 900 : 660)
+        let v = SliderView(kind: kind, width: overlayWidth - 40)
         if let state = kind.read() {
             v.value = state.value
             v.muted = state.muted
         }
         v.onChange = { kind.write($0) }
-        v.onInteract = { [weak self] in self?.bumpSliderIdle() }
+        v.onInteract = { [weak self] in self?.bumpOverlayIdle() }
         v.onIconTap = { [weak v] in
             guard kind == .volume, let v else { return }
             SystemVolume.setMuted(!v.muted)
@@ -180,16 +200,39 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         return v
     }
 
+    private func makePanelView() -> ShortcutPanelView {
+        let actions = settings.panelActions
+        let v = ShortcutPanelView(actions: actions, width: overlayWidth)
+        v.states = ShortcutStates.current(for: actions)
+        v.onInteract = { [weak self] in self?.bumpOverlayIdle() }
+        v.onRun = { [weak self, weak v] action in
+            guard let self else { return false }
+            let ok = self.runner.run(action)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                v?.states = ShortcutStates.current(for: actions)
+                v?.needsDisplay = true
+            }
+            return ok
+        }
+        panelView = v
+        return v
+    }
+
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier id: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         let item = NSCustomTouchBarItem(identifier: id)
-        if id == Self.closeID || id == Self.sliderCloseID {
+        if id == Self.closeID || id == Self.overlayCloseID {
             let v = CloseView()
-            v.onTap = { [weak self] _ in id == Self.closeID ? self?.hide() : self?.closeSlider() }
+            v.onTap = { [weak self] _ in id == Self.closeID ? self?.hide() : self?.closeOverlay() }
             item.view = v
             return item
         }
-        if id == Self.sliderID, let kind = sliderKind {
+        if id == Self.sliderID, case .slider(let kind) = overlay {
             item.view = makeSliderView(kind)
+            item.visibilityPriority = .high
+            return item
+        }
+        if id == Self.panelID {
+            item.view = makePanelView()
             item.visibilityPriority = .high
             return item
         }
@@ -209,10 +252,14 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         }
         trayView.state = claude.headline
 
-        // Ikuti perubahan dari tombol keyboard saat slider terbuka.
-        if let v = sliderView, !v.isTracking, let state = sliderKind?.read() {
+        // Ikuti perubahan dari tombol keyboard saat overlay terbuka.
+        if let v = sliderView, !v.isTracking, case .slider(let kind) = overlay, let state = kind.read() {
             v.value = state.value
             v.muted = state.muted
+        }
+        if let v = panelView, case .panel = overlay {
+            v.states = ShortcutStates.current(for: settings.panelActions)
+            v.needsDisplay = true
         }
     }
 

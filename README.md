@@ -11,9 +11,28 @@ Dashboard Touch Bar untuk MacBook Pro. Tampil di semua aplikasi, bukan cuma saat
 | Sistem | CPU + grafik 36 detik, RAM, baterai | – |
 | Pomodoro | Fokus → istirahat otomatis | Mulai / jeda / lanjut; ↺ untuk reset saat dijeda |
 | Jam | Jam dan tanggal | – |
-| Kontrol | Brightness, volume, screenshot, Notification Center | ☀️/🔊 membuka slider selebar Touch Bar; 📷 membuka toolbar Screenshot (⌘⇧5); 🔔 membuka Notification Center |
+| Pintasan cepat | Tombol favorit yang kamu pin (default: kecerahan, volume, screenshot, notifikasi) | Jalankan pintasan; ⊞ membuka panel semua pintasan |
+
+## Pintasan
+
+Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua tombol bawaan Mac, mirip Expanded Control Strip. Kalau tidak muat, geser panelnya.
+
+![Panel pintasan](docs/preview-panel.png)
+
+| Grup | Tombol |
+|---|---|
+| Layar | Kecerahan (slider), lampu keyboard (slider), Night Shift, mode gelap |
+| Suara & media | Volume (slider), bisu, lagu sebelumnya, putar/jeda, lagu berikutnya |
+| Jendela | Mission Control, App Exposé, tampilkan desktop, Apps (Launchpad) |
+| Sistem | Spotlight, Siri, screenshot, Notification Center, Control Center (Focus, Wi-Fi), kunci layar, sleep, screen saver, ganti bahasa keyboard |
+| Ekstra | Emoji & simbol, Kafein (Mac tetap melek) |
+| Tambahan kamu | Aplikasi apa pun dan Shortcuts dari app Shortcuts |
+
+Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider:
 
 ![Slider](docs/preview-slider.png)
+
+Semua diatur di jendela Bilah › **Pintasan**: nyalakan/matikan, urutkan, pin maksimal 6 tombol ke Pintasan cepat, dan tambah aplikasi atau Shortcut.
 
 Tombol `‹` di kiri mengecilkan dashboard. Ikon Bilah di Control Strip memunculkannya lagi, lengkap dengan titik status Claude.
 
@@ -31,6 +50,7 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
 
 - **Preview langsung** di atas: Touch Bar tiruan dengan data asli, dan widgetnya bisa diklik.
 - **Widget**: seret untuk mengubah urutan, nyalakan atau matikan tiap widget.
+- **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
 - **Umum**: lebar penuh atau dengan Control Strip, buka otomatis saat login.
 - **Pomodoro**: durasi fokus dan istirahat.
 - **Claude Code**: pasang hook dengan satu klik dan lihat sesi yang sedang berjalan.
@@ -54,14 +74,15 @@ Hook-nya hanya menulis file kecil di `~/Library/Application Support/Bilah/claude
 ## Izin
 
 - **Automation (Spotify/Music)**: ditanyakan saat widget Musik pertama kali membaca lagu.
-- **Aksesibilitas**: untuk tombol 🔔. Notification Center dibuka dengan "mengklik" jam di menu bar lewat Accessibility API.
+- **Aksesibilitas**: untuk tombol media, Spotlight, emoji, Notification Center, dan Control Center. Bilah mengirim tombol keyboard/media atau "mengklik" menu bar lewat Accessibility API.
 
 Karena tiap rilis ditandatangani sertifikat yang sama, izin yang sudah diberikan tetap ada setelah update.
 
 ## Batasan
 
 - Memakai API Touch Bar privat (DFRFoundation), cara yang sama dengan Pock dan MTMR. Sudah dicek ada di macOS 26.5.2, tapi bisa hilang di versi berikutnya. Kalau hilang, Bilah menampilkan peringatan.
-- Brightness memakai `DisplayServices` (juga privat) karena jalur IOKit lama tidak jalan di Apple Silicon. Yang diatur hanya layar bawaan MacBook.
+- Brightness memakai `DisplayServices`, lampu keyboard dan Night Shift memakai `CoreBrightness`, mode gelap memakai `SkyLight`, dan Mission Control/App Exposé/desktop memakai notifikasi Dock. Semuanya privat. Yang diatur hanya layar bawaan MacBook.
+- Dikte tidak disertakan karena tidak ada cara andal untuk memicunya dari luar.
 - Widget Musik memakai AppleScript karena MediaRemote sudah dikunci Apple sejak macOS 15.4. Spotify/Music tidak pernah dibuka paksa.
 - Kalau bar tidak muat, widget berprioritas rendah disembunyikan duluan: Jam dulu, lalu Musik/Sistem/Kontrol.
 
@@ -98,7 +119,8 @@ Sources/Bilah/
   UI/                           Theme, Draw, WidgetView, Animator 30 fps, BarPreview (layout + preview)
   Widgets/                      satu file per widget (model + view)
   Claude/ClaudeStore            status sesi, mode hook, pasang/copot hook
-  System/SystemControls         volume, brightness, screenshot, Notification Center
+  System/SystemControls         volume, brightness, screenshot, menu bar (Notification/Control Center)
+  System/ShortcutActions        daftar tombol bawaan, status, dan eksekutor tiap aksi
   System/Updater                cek, unduh, verifikasi, pasang update dari GitHub
   Settings/                     SettingsStore (UserDefaults) + jendela utama SwiftUI
 ```
