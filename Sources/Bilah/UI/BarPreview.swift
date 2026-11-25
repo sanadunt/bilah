@@ -75,7 +75,7 @@ final class BarPreviewView: NSView {
             addSubview(canvas)
         } else {
             let strip = DashboardStripView(widgets: settings.visibleWidgets.map(dashboard.makePreviewView),
-                                           spread: settings.spreadWidgets)
+                                           mode: settings.spacing)
             let bar = BarContainerView(leading: CloseView(), content: strip, width: width)
             bar.frame = NSRect(x: Self.inset, y: Self.inset, width: width, height: Theme.height)
             addSubview(bar)
@@ -114,13 +114,13 @@ struct LayoutToolbar: View {
                 HStack(spacing: 14) {
                     capacity
                     Spacer()
-                    Picker("Jarak", selection: $store.spreadWidgets) {
-                        Text("Sebar merata").tag(true)
-                        Text("Rapat").tag(false)
+                    Picker("Jarak", selection: $store.spacing) {
+                        ForEach(SpacingMode.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 200)
+                    .frame(width: 280)
+                    .help("Isi penuh: widget melebar mengisi sisa ruang. Sebar merata: sisa ruang jadi jarak. Rapat: semua di kiri.")
                     Menu {
                         ForEach(hidden) { kind in
                             Button(kind.title) { store.setEnabled(kind, true) }
@@ -163,7 +163,8 @@ struct LayoutToolbar: View {
                 .foregroundStyle(over > 0 ? .orange : .green)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Terpakai \(used) / \(available) pt").fontWeight(.medium).monospacedDigit()
-                Text(over > 0 ? "\(over) pt lebih, sisanya bisa digeser di Touch Bar" : "Sisa \(-over) pt")
+                Text(over > 0 ? "\(over) pt lebih, sisanya bisa digeser di Touch Bar"
+                     : store.spacing == .fill ? "Sisa \(-over) pt diisi otomatis" : "Sisa \(-over) pt")
                     .font(.caption)
                     .foregroundStyle(over > 0 ? .orange : .secondary)
             }

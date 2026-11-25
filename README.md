@@ -28,7 +28,7 @@ Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua
 | Ekstra | Emoji & simbol, Kafein (Mac tetap melek) |
 | Tambahan kamu | Aplikasi apa pun dan Shortcuts dari app Shortcuts |
 
-Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider dengan urutan **slider | + | − | ×**: geser jalurnya, ketuk +/− untuk naik-turun 1/16 (tahan = berulang), × untuk menutup.
+Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider dengan urutan **slider | − | + | ×**: geser jalurnya, ketuk −/+ untuk naik-turun 1/16 (tahan = berulang), × untuk menutup.
 
 ![Slider](docs/preview-slider.png)
 
@@ -53,6 +53,10 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
 - **Atur tata letak** (tombol di bawah preview): susun widget langsung di Touch Bar tiruan. Seret untuk memindah, tarik garis di tepi kanan untuk mengecilkan/membesarkan (ukuran pt tampil di bawah tiap widget), klik dua kali untuk ukuran bawaan, × untuk menyembunyikan. Meteran menunjukkan berapa pt yang terpakai dari lebar Touch Bar, dan garis merah menandai bagian yang harus digeser.
 
   ![Atur tata letak](docs/layout-editor.png)
+
+  Sisa ruang dipakai sesuai pilihan jarak: **Isi penuh** (bawaan, widget melebar sampai batas maksimalnya sehingga tidak ada celah kosong; widget yang lebarnya kamu atur sendiri tetap), **Sebar merata** (sisa ruang jadi jarak), atau **Rapat** (semua di kiri).
+
+  ![Isi penuh](docs/preview-fill.png)
 - **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
 - **Umum**: lebar penuh atau dengan Control Strip, buka otomatis saat login.
 - **Pomodoro**: durasi fokus dan istirahat.

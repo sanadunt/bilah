@@ -54,6 +54,23 @@ enum Snapshot {
         add(BarContainerView(leading: CloseView(), content: strip, width: barWidth), to: canvas, inset: inset)
         render(canvas, to: path)
 
+        // Isi penuh: lebih sedikit widget, sisa ruang dipakai untuk melebar (bukan celah kosong).
+        let fillCanvas = Canvas(frame: canvas.frame)
+        let fillClaude = ClaudeView()
+        fillClaude.update(sessions: sessions, focusID: "b")
+        let fillMusic = NowPlayingView()
+        fillMusic.track = music.track
+        let fillControls = ControlsView(actions: [.builtin(.brightness), .builtin(.volume), .builtin(.screenshot),
+                                                  .builtin(.notificationCenter)])
+        fillControls.states = demoStates
+        let fillSystem = SystemView()
+        fillSystem.cpuHistory = system.cpuHistory
+        fillSystem.memory = system.memory
+        fillSystem.battery = system.battery
+        let fillStrip = DashboardStripView(widgets: [fillClaude, fillMusic, fillSystem, fillControls], mode: .fill)
+        add(BarContainerView(leading: CloseView(), content: fillStrip, width: barWidth), to: fillCanvas, inset: inset)
+        render(fillCanvas, to: (path as NSString).deletingPathExtension + "-fill.png")
+
         // Mode slider volume.
         let sliderCanvas = Canvas(frame: canvas.frame)
         let slider = SliderView(kind: .volume, width: barWidth)

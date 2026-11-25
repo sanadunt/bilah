@@ -252,7 +252,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             let close = CloseView(symbol: "chevron.left")
             close.onTap = { [weak self] _ in self?.hide() }
             let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap(makeSizedView),
-                                           spread: settings.spreadWidgets)
+                                           mode: settings.spacing)
             strip.onLayout = { available, content in LayoutReport.write(available: available, content: content) }
             let container = BarContainerView(leading: close, content: strip, width: regionWidth)
             dashboardContainer = container
@@ -260,7 +260,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         case Self.overlayID:
             switch overlay {
             case .slider(let kind):
-                // Slider membawa tombol + − × sendiri: [slider] [+] [−] [×].
+                // Slider membawa tombol − + × sendiri: [slider] [−] [+] [×].
                 let container = BarContainerView(content: makeSliderView(kind), width: regionWidth)
                 overlayContainer = container
                 item.view = container

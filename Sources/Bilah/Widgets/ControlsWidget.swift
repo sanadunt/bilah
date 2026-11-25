@@ -334,8 +334,8 @@ final class ShortcutPanelView: WidgetView {
 
 // MARK: - Slider besar
 
-/// Slider yang menggantikan dashboard sementara: [ikon · jalur · nilai] [+] [−] [×].
-/// Geser di jalur untuk langsung ke nilai; + dan − naik-turun 1/16 (tahan = berulang); × menutup;
+/// Slider yang menggantikan dashboard sementara: [ikon · jalur · nilai] [−] [+] [×].
+/// Geser di jalur untuk langsung ke nilai; − dan + naik-turun 1/16 (tahan = berulang); × menutup;
 /// ketuk ikon speaker untuk bisu.
 final class SliderView: WidgetView {
     private enum Part { case icon, track, plus, minus, close }
@@ -366,16 +366,16 @@ final class SliderView: WidgetView {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    // Tata letak dari kanan: × · − · + , sisanya kapsul slider.
+    // Tata letak dari kanan: × · + · − , sisanya kapsul slider.
     private func buttonRect(_ indexFromRight: Int) -> NSRect {
         let x = bounds.width - CGFloat(indexFromRight + 1) * Self.buttonWidth - CGFloat(indexFromRight) * Self.gap
         return NSRect(x: x, y: 0, width: Self.buttonWidth, height: bounds.height)
     }
 
     private var closeRect: NSRect { buttonRect(0) }
-    private var minusRect: NSRect { buttonRect(1) }
-    private var plusRect: NSRect { buttonRect(2) }
-    private var sliderRect: NSRect { NSRect(x: 0, y: 0, width: max(120, plusRect.minX - Self.gap), height: bounds.height) }
+    private var plusRect: NSRect { buttonRect(1) }
+    private var minusRect: NSRect { buttonRect(2) }
+    private var sliderRect: NSRect { NSRect(x: 0, y: 0, width: max(120, minusRect.minX - Self.gap), height: bounds.height) }
     private var iconCenter: NSPoint { NSPoint(x: 23, y: bounds.midY) }
     private var track: NSRect {
         NSRect(x: 50, y: bounds.midY - 3, width: max(10, sliderRect.maxX - 64 - 50), height: 6)
@@ -501,8 +501,8 @@ final class SliderView: WidgetView {
                       centerY: b.midY, align: .right)
 
         let buttons: [(Part, NSRect, String, Bool)] = [
-            (.plus, plusRect, "plus", value >= 1),
             (.minus, minusRect, "minus", value <= 0),
+            (.plus, plusRect, "plus", value >= 1),
             (.close, closeRect, "xmark", false),
         ]
         for (part, rect, symbol, atLimit) in buttons {

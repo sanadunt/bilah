@@ -13,8 +13,8 @@ final class SettingsStore: ObservableObject {
     @Published var breakMinutes: Int { didSet { defaults.set(breakMinutes, forKey: "breakMinutes") } }
     /// Lebar pilihan pengguna per widget (pt). Tidak ada = lebar bawaan.
     @Published var widgetWidths: [String: Double] { didSet { defaults.set(widgetWidths, forKey: "widgetWidths") } }
-    /// true = sisa ruang dibagi rata di antara widget; false = widget rapat di kiri.
-    @Published var spreadWidgets: Bool { didSet { defaults.set(spreadWidgets, forKey: "spreadWidgets") } }
+    /// Cara memakai sisa ruang Touch Bar: isi penuh (bawaan), sebar merata, atau rapat.
+    @Published var spacing: SpacingMode { didSet { defaults.set(spacing.rawValue, forKey: "spacing") } }
     @Published var shortcuts: [ShortcutEntry] {
         didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
     }
@@ -30,7 +30,9 @@ final class SettingsStore: ObservableObject {
         focusMinutes = defaults.object(forKey: "focusMinutes") as? Int ?? 25
         breakMinutes = defaults.object(forKey: "breakMinutes") as? Int ?? 5
         widgetWidths = defaults.dictionary(forKey: "widgetWidths") as? [String: Double] ?? [:]
-        spreadWidgets = defaults.object(forKey: "spreadWidgets") as? Bool ?? true
+        // v0.7 menyimpan "spreadWidgets"; false (rapat) dipertahankan, selain itu pakai Isi penuh.
+        spacing = defaults.string(forKey: "spacing").flatMap(SpacingMode.init(rawValue:))
+            ?? (defaults.object(forKey: "spreadWidgets") as? Bool == false ? .packed : .fill)
         shortcuts = Self.loadShortcuts(defaults)
     }
 
@@ -76,7 +78,7 @@ final class SettingsStore: ObservableObject {
         visibleWidgets.map(\.rawValue).joined(separator: ",") + "|\(hideControlStrip)|"
             + pinnedActions.map(\.id).joined(separator: ",")
             + "|" + widgetWidths.sorted { $0.key < $1.key }.map { "\($0.key)=\(Int($0.value))" }.joined(separator: ",")
-            + "|\(spreadWidgets)"
+            + "|\(spacing.rawValue)"
     }
 
     func isEnabled(_ kind: WidgetKind) -> Bool { !disabled.contains(kind) }
