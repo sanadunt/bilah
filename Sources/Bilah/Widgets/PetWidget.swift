@@ -197,6 +197,17 @@ final class PetWorld {
         }
     }
 
+    /// Semua peliharaan lompat senang (mis. saat Claude selesai bekerja). Yang tidur ikut bangun.
+    func celebrate(now: Double) {
+        for pet in pets {
+            if pet.mode == .sleep { spawn(.alert, at: pet.x, now: now, life: 0.9) }
+            pet.target = nil
+            pet.set(.happy, now: now, for: 1.8)
+            spawn(.heart, at: pet.x, now: now, life: 1.5)
+            spawn(.heart, at: pet.x + 0.02, now: now + 0.3, life: 1.5)
+        }
+    }
+
     private func spawn(_ kind: PetParticle.Kind, at x: CGFloat, now: Double, life: Double) {
         particles.append(PetParticle(kind: kind, x: x, born: now, life: life, drift: .random(in: -0.6...0.6)))
     }
@@ -278,6 +289,8 @@ final class PetWidget: Widget {
     }
 
     func tick() {}
+
+    func celebrate() { world.celebrate(now: CACurrentMediaTime()) }
 
     private func step() {
         let now = CACurrentMediaTime()

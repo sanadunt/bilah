@@ -28,6 +28,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         case slider(SliderKind)
         case panel
         case game
+        case message(title: String, detail: String)
     }
 
     private var overlay: Overlay?
@@ -36,6 +37,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private weak var panelView: ShortcutPanelView?
     private weak var gameView: RunGameView?
     private var overlayIdleTimer: Timer?
+    private var commandObserver: NSObjectProtocol?
 
     // Wadah bar yang sedang tampil, supaya lebarnya bisa disesuaikan setelah Touch Bar diukur.
     private weak var dashboardContainer: BarContainerView?
@@ -70,6 +72,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         super.init()
         runner.onOpenSlider = { [weak self] kind in self?.openOverlay(.slider(kind)) }
         runner.onOpenGame = { [weak self] in self?.openGame() }
+        claude.onFinished = { [weak self] _ in (self?.widgets[.pet] as? PetWidget)?.celebrate() }
         controls.onOpenPanel = { [weak self] in self?.openOverlay(.panel) }
     }
 
@@ -210,6 +213,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         switch overlay {
         case .panel: seconds = 10
         case .game: seconds = 45
+        case .message: seconds = 20
         default: seconds = 3.5
         }
         let t = Timer(timeInterval: seconds, target: self, selector: #selector(overlayIdle), userInfo: nil, repeats: false)
@@ -254,6 +258,9 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         let v = ShortcutPanelView(actions: actions, width: regionWidth - 38)
         v.states = ShortcutStates.current(for: actions)
         v.onInteract = { [weak self] in self?.bumpOverlayIdle() }
+        commandObserver = NotificationCenter.default.addObserver(forName: CommandRunner.changed, object: nil, queue: .main) {
+            [weak v] _ in v?.needsDisplay = true
+        }
         v.onRun = { [weak self, weak v] action in
             guard let self else { return false }
             let ok = self.runner.run(action)
@@ -301,6 +308,14 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
                 let container = BarContainerView(content: view, trailing: close, width: regionWidth)
                 overlayContainer = container
                 item.view = container
+            case .message(let title, let detail):
+                let close = CloseView(symbol: "xmark")
+                close.onTap = { [weak self] _ in self?.closeOverlay() }
+                let message = MessageView(title: title, detail: detail, width: regionWidth - 38)
+                message.onTap = { [weak self] _ in self?.closeOverlay() }
+                let container = BarContainerView(content: message, trailing: close, width: regionWidth)
+                overlayContainer = container
+                item.view = container
             case .panel:
                 let close = CloseView(symbol: "xmark")
                 close.onTap = { [weak self] _ in self?.closeOverlay() }
@@ -323,6 +338,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             widget.tick()
         }
         trayView.state = claude.headline
+        trackRest()
 
         // Ikuti perubahan dari tombol keyboard saat overlay terbuka.
         if let v = sliderView, !v.isTracking, case .slider(let kind) = overlay, let state = kind.read() {
@@ -333,6 +349,23 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             v.states = ShortcutStates.current(for: settings.panelActions)
             v.needsDisplay = true
         }
+    }
+
+    // MARK: Pengingat istirahat
+
+    /// Detik kerja tanpa jeda. Diam ≥ 5 menit dihitung sudah istirahat.
+    private var activeSeconds = 0
+
+    private func trackRest() {
+        guard settings.restReminder, available else { activeSeconds = 0; return }
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+        if idle >= 5 * 60 { activeSeconds = 0; return }
+        if idle < 90 { activeSeconds += 1 }
+        guard activeSeconds >= settings.restInterval * 60 else { return }
+        activeSeconds = 0
+        (widgets[.pet] as? PetWidget)?.celebrate()
+        openOverlay(.message(title: "Waktunya istirahat 💧",
+                             detail: "Sudah \(settings.restInterval) menit kerja. Minum, regangkan badan, dan istirahatkan mata sebentar."))
     }
 
     @objc private func appActivated(_ note: Notification) {

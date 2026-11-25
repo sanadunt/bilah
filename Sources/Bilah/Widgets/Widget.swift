@@ -192,3 +192,24 @@ final class TrayView: WidgetView {
         }
     }
 }
+
+/// Pesan selebar Touch Bar (mis. pengingat istirahat). Ketuk atau × untuk menutup.
+final class MessageView: WidgetView {
+    private let title: String
+    private let detail: String
+
+    init(title: String, detail: String, width: CGFloat) {
+        self.title = title
+        self.detail = detail
+        super.init(width: width)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func drawContent(_ b: NSRect) {
+        Draw.roundedRect(b, radius: Theme.radius, fill: Theme.teal.withAlphaComponent(0.16))
+        Draw.symbol("figure.walk", size: 14, weight: .semibold, color: Theme.teal, center: NSPoint(x: 20, y: b.midY))
+        Draw.line(title, Theme.font(11, .bold), Theme.text, x: 38, y: 3, width: b.width - 48)
+        Draw.line(detail, Theme.font(9.5), Theme.secondary, x: 38, y: 16, width: b.width - 48)
+    }
+}

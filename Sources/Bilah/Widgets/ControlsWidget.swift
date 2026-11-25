@@ -56,6 +56,9 @@ enum ShortcutButton {
         if case .shortcut(let name) = action {
             return min(120, max(50, Draw.width(name, Theme.font(10, .semibold)) + 20))
         }
+        if case .command(let name, _, _) = action {
+            return min(140, max(56, Draw.width(name, Theme.font(10, .semibold)) + 34))
+        }
         return compact ? 31 : 40
     }
 
@@ -89,6 +92,18 @@ enum ShortcutButton {
         case .shortcut(let name):
             Draw.centered(name, Theme.font(10, .semibold), Theme.text.withAlphaComponent(alpha), x: r.minX + 6,
                           width: r.width - 12, centerY: center.y, align: .center)
+        case .command(let name, _, _):
+            // Status di kiri: ▶ siap, ⏳ berjalan, ✓ berhasil, ✗ gagal (6 detik setelah selesai).
+            let status = CommandRunner.shared.status(action.id)
+            let (symbol, color): (String, NSColor) = switch status {
+            case .running: ("hourglass", Theme.amber)
+            case .succeeded: ("checkmark.circle.fill", Theme.green)
+            case .failed: ("xmark.circle.fill", Theme.red)
+            case nil: ("terminal.fill", Theme.secondary)
+            }
+            Draw.symbol(symbol, size: 9.5, weight: .bold, color: color, center: NSPoint(x: r.minX + 12, y: center.y))
+            Draw.line(name, Theme.font(10, .semibold), Theme.text.withAlphaComponent(alpha), x: r.minX + 21,
+                      y: center.y - Draw.lineHeight(Theme.font(10, .semibold)) / 2, width: r.width - 26)
         case .builtin(let b):
             let level = states.level(b)
             var symbol = b.symbol
@@ -140,7 +155,16 @@ final class ControlsWidget: Widget {
         return v
     }
 
-    func tick() { refresh() }
+    private var commandObserver: NSObjectProtocol?
+
+    func tick() {
+        if commandObserver == nil {
+            commandObserver = NotificationCenter.default.addObserver(forName: CommandRunner.changed, object: nil, queue: .main) {
+                [weak self] _ in self?.refresh()
+            }
+        }
+        refresh()
+    }
 
     private func refresh() {
         let states = ShortcutStates.current(for: settings.pinnedActions)

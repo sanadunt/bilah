@@ -141,12 +141,15 @@ enum ShortcutAction: Codable, Hashable {
     case builtin(BuiltinAction)
     case app(path: String)
     case shortcut(name: String)
+    /// Perintah shell milik pengguna (zsh), dijalankan di folder `directory` (boleh kosong).
+    case command(name: String, script: String, directory: String)
 
     var id: String {
         switch self {
         case .builtin(let b): "builtin:\(b.rawValue)"
         case .app(let path): "app:\(path)"
         case .shortcut(let name): "shortcut:\(name)"
+        case .command(let name, let script, _): "command:\(name)|\(script)"
         }
     }
 
@@ -155,6 +158,7 @@ enum ShortcutAction: Codable, Hashable {
         case .builtin(let b): b.title
         case .app(let path): FileManager.default.displayName(atPath: path).replacingOccurrences(of: ".app", with: "")
         case .shortcut(let name): name
+        case .command(let name, _, _): name
         }
     }
 
@@ -163,6 +167,7 @@ enum ShortcutAction: Codable, Hashable {
         case .builtin(let b): b.group.rawValue
         case .app: "Aplikasi"
         case .shortcut: "Shortcut"
+        case .command: "Perintah"
         }
     }
 
@@ -175,7 +180,7 @@ enum ShortcutAction: Codable, Hashable {
         switch self {
         case .builtin(let b): b.isAvailable
         case .app(let path): FileManager.default.fileExists(atPath: path)
-        case .shortcut: true
+        case .shortcut, .command: true
         }
     }
 }
@@ -259,6 +264,9 @@ final class ShortcutRunner {
             return true
         case .shortcut(let name):
             SystemShortcuts.runShortcut(name)
+            return true
+        case .command(let name, let script, let directory):
+            CommandRunner.shared.run(id: action.id, name: name, script: script, directory: directory)
             return true
         case .builtin(let b):
             if b.needsAccessibility && !SystemActions.hasAccessibility {

@@ -117,6 +117,23 @@ enum Snapshot {
             to: infoCanvas, inset: inset)
         render(infoCanvas, to: (path as NSString).deletingPathExtension + "-info.png")
 
+        // Pengingat istirahat + tombol perintah.
+        let restCanvas = Canvas(frame: canvas.frame)
+        let message = MessageView(title: "Waktunya istirahat 💧",
+                                  detail: "Sudah 50 menit kerja. Minum, regangkan badan, dan istirahatkan mata sebentar.",
+                                  width: barWidth - 38)
+        add(BarContainerView(content: message, trailing: CloseView(symbol: "xmark"), width: barWidth), to: restCanvas, inset: inset)
+        render(restCanvas, to: (path as NSString).deletingPathExtension + "-rest.png")
+
+        let cmdCanvas = Canvas(frame: canvas.frame)
+        let cmdControls = ControlsView(actions: [.builtin(.volume), .command(name: "Build Bilah", script: "./scripts/build-app.sh", directory: "~/Projects/bilah"),
+                                                 .command(name: "Tes", script: "swift test", directory: "")])
+        cmdControls.states = demoStates
+        let cmdStrip = DashboardStripView(widgets: [cmdControls], mode: .packed)
+        add(BarContainerView(leading: DashboardLeadingView(pageCount: 3, current: 0), content: cmdStrip, width: barWidth),
+            to: cmdCanvas, inset: inset)
+        render(cmdCanvas, to: (path as NSString).deletingPathExtension + "-commands.png")
+
         // Peliharaan di kotak kecil, di samping widget lain.
         let compactCanvas = Canvas(frame: canvas.frame)
         let compactWorld = PetWorld()

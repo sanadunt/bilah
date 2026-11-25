@@ -60,13 +60,17 @@ Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua
 | Jendela | Mission Control, App Exposé, tampilkan desktop, Apps (Launchpad) |
 | Sistem | Spotlight, Siri, screenshot, Notification Center, Control Center (Focus, Wi-Fi), kunci layar, sleep, screen saver, ganti bahasa keyboard |
 | Ekstra | Emoji & simbol, Kafein (Mac tetap melek), Game: Kejar Camilan |
-| Tambahan kamu | Aplikasi apa pun dan Shortcuts dari app Shortcuts |
+| Tambahan kamu | Aplikasi apa pun, Shortcuts dari app Shortcuts, dan **tombol perintah** (perintah shell milikmu) |
 
 Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider dengan urutan **slider | − | + | ×**: geser jalurnya, ketuk −/+ untuk naik-turun 1/16 (tahan = berulang), × untuk menutup.
 
 ![Slider](docs/preview-slider.png)
 
-Semua diatur di jendela Bilah › **Pintasan**: nyalakan/matikan, urutkan, pin maksimal 6 tombol ke Pintasan cepat, dan tambah aplikasi atau Shortcut.
+Semua diatur di jendela Bilah › **Pintasan**: nyalakan/matikan, urutkan, pin maksimal 6 tombol ke Pintasan cepat, dan tambah aplikasi, Shortcut, atau perintah.
+
+**Tombol perintah** menjalankan perintah shell (zsh) di folder pilihanmu, mis. `./scripts/build-app.sh` atau `swift test`. Tombolnya menampilkan ⏳ saat berjalan lalu ✓/✗; output-nya dicatat di `~/Library/Logs/Bilah/perintah.log`. Gabungkan dengan profil per aplikasi supaya tombol build muncul sendiri saat Godot/Xcode aktif.
+
+![Tombol perintah](docs/preview-commands.png)
 
 Tombol `‹` di kiri mengecilkan dashboard. Ikon Bilah di Control Strip memunculkannya lagi, lengkap dengan titik status Claude.
 
@@ -114,6 +118,16 @@ Updater hanya menerima app yang ditandatangani dengan sertifikat yang sama denga
 Di jendela Bilah › **Claude Code**, klik **Pasang** di samping `settings.json` yang dipakai Claude Code kamu. Bilah hanya menambahkan entri hook-nya sendiri, dan versi lama file itu dicadangkan sebagai `settings.json.bilah-backup`. Sesi Claude yang sudah berjalan perlu dibuka ulang.
 
 Hook-nya hanya menulis file kecil di `~/Library/Application Support/Bilah/claude/` (sekitar 8 ms per panggilan), selalu keluar dengan kode 0, dan tidak pernah memblokir tool.
+
+- Saat Claude bekerja, baris kedua widget menunjukkan tool yang sedang dipakai, mis. "bilah · Edit · Widget.swift".
+- Ketuk sesi untuk membuka aplikasi tempat sesi itu berjalan (Terminal, iTerm, VS Code, atau app Claude). Titik-titik di kanan = pindah sesi.
+- Peliharaan lompat senang setiap Claude selesai bekerja.
+
+## Pengingat istirahat
+
+Setelah 50 menit kerja tanpa jeda (bisa diatur di Umum), Touch Bar mengingatkan untuk istirahat dan peliharaan ikut menyapa. Diam 5 menit dihitung sudah istirahat.
+
+![Pengingat istirahat](docs/preview-rest.png)
 
 ## Izin
 

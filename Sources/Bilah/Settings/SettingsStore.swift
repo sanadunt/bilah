@@ -41,6 +41,9 @@ final class SettingsStore: ObservableObject {
     @Published var petNightSleep: Bool { didSet { defaults.set(petNightSleep, forKey: "petNightSleep") } }
     /// true = peliharaan di kotak kecil (±40 pt per ekor, tidak jalan-jalan); false = area main lebar.
     @Published var petCompact: Bool { didSet { defaults.set(petCompact, forKey: "petCompact") } }
+    /// Pengingat istirahat setelah `restInterval` menit kerja tanpa jeda.
+    @Published var restReminder: Bool { didSet { defaults.set(restReminder, forKey: "restReminder") } }
+    @Published var restInterval: Int { didSet { defaults.set(restInterval, forKey: "restInterval") } }
     /// Kota untuk jadwal sholat dan cuaca.
     @Published var location: CityLocation {
         didSet { defaults.set(try? JSONEncoder().encode(location), forKey: "location") }
@@ -74,6 +77,8 @@ final class SettingsStore: ObservableObject {
         petDance = defaults.object(forKey: "petDance") as? Bool ?? true
         petNightSleep = defaults.object(forKey: "petNightSleep") as? Bool ?? true
         petCompact = defaults.object(forKey: "petCompact") as? Bool ?? false
+        restReminder = defaults.object(forKey: "restReminder") as? Bool ?? true
+        restInterval = defaults.object(forKey: "restInterval") as? Int ?? 50
         location = defaults.data(forKey: "location").flatMap { try? JSONDecoder().decode(CityLocation.self, from: $0) }
             ?? CityLocation.presets[0]
         shortcuts = Self.loadShortcuts(defaults)

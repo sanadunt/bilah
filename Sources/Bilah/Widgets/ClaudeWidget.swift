@@ -6,6 +6,9 @@ final class ClaudeWidget: Widget {
 
     private(set) var sessions: [ClaudeSession] = []
     private var focusID: String?
+    private var lastStates: [String: ClaudeState] = [:]
+    /// Dipanggil saat sebuah sesi berubah dari "lagi kerja" ke "selesai".
+    var onFinished: ((ClaudeSession) -> Void)?
     private let views = ViewSet<ClaudeView>()
 
     /// Status paling penting untuk titik di ikon Control Strip. "Selesai" hanya tampil 15 menit.
@@ -17,7 +20,10 @@ final class ClaudeWidget: Widget {
 
     func makeView() -> WidgetView {
         let v = ClaudeView()
-        v.onTap = { [weak self] _ in self?.cycle() }
+        v.onTap = { [weak self, weak v] p in
+            guard let self, let v else { return }
+            if v.isNextZone(p) { self.cycle() } else { self.openFocused() }
+        }
         views.add(v)
         push()
         return v
@@ -25,7 +31,21 @@ final class ClaudeWidget: Widget {
 
     func tick() {
         sessions = ClaudeStore.loadAll()
+        for s in sessions where lastStates[s.id] == .working && s.state == .done { onFinished?(s) }
+        lastStates = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0.state) })
         push()
+    }
+
+    /// Ketuk sesi = buka aplikasi tempat sesi itu berjalan. Tanpa info aplikasi: pindah ke sesi berikutnya.
+    private func openFocused() {
+        guard let s = sessions.first(where: { $0.id == focusID }) ?? sessions.first else { return }
+        if let pid = s.appPID, let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated {
+            app.activate()
+        } else if let id = s.appBundle, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+            NSWorkspace.shared.openApplication(at: url, configuration: .init())
+        } else {
+            cycle()
+        }
     }
 
     /// Ketuk = pindah ke sesi berikutnya.
@@ -48,6 +68,9 @@ final class ClaudeView: WidgetView {
 
     init() { super.init(width: 200, minWidth: 156, range: 140...340) }
     required init?(coder: NSCoder) { fatalError() }
+
+    /// Titik-titik sesi di kanan = pindah sesi; selebihnya = buka aplikasinya.
+    func isNextZone(_ p: NSPoint) -> Bool { sessions.count > 1 && p.x > bounds.width - 24 }
 
     func update(sessions: [ClaudeSession], focusID: String?) {
         self.sessions = sessions
@@ -95,7 +118,8 @@ final class ClaudeView: WidgetView {
         let multi = sessions.count > 1
         let textWidth = b.width - 32 - (multi ? 30 : 8)
         Draw.line(s.state.title, Theme.font(11, .semibold), s.state.color ?? Theme.text, x: 32, y: 3, width: textWidth)
-        Draw.line("\(s.project) · \(Self.ago(s.since))", Theme.font(9.5), Theme.secondary, x: 32, y: 16, width: textWidth)
+        let second = s.state == .working && s.detail != nil ? "\(s.project) · \(s.detail!)" : "\(s.project) · \(Self.ago(s.since))"
+        Draw.line(second, Theme.font(9.5), Theme.secondary, x: 32, y: 16, width: textWidth)
 
         if multi {
             // Titik per sesi (maks 5), yang difokus lebih besar.

@@ -39,6 +39,11 @@ struct ClaudeSession: Codable, Equatable {
     /// Kapan state sekarang dimulai (detik epoch).
     var since: Double
     var updated: Double
+    /// Tool yang sedang dipakai, mis. "Edit · Widget.swift".
+    var detail: String?
+    /// Aplikasi tempat sesi berjalan (Terminal, iTerm, VS Code, app Claude), untuk dibuka saat diketuk.
+    var appPID: Int32?
+    var appBundle: String?
 }
 
 /// Satu file JSON per sesi Claude Code. Ditulis oleh `Bilah hook`, dibaca widget tiap detik.
@@ -118,7 +123,63 @@ enum ClaudeHook {
         }
         s.project = project
         s.updated = now
+        switch event {
+        case "PreToolUse": s.detail = describeTool(payload)
+        case "UserPromptSubmit", "Stop", "SessionStart": s.detail = nil
+        default: break
+        }
+        if s.appBundle == nil || event == "SessionStart" || event == "UserPromptSubmit", let host = hostApp() {
+            s.appPID = host.pid
+            s.appBundle = host.bundle
+        }
         ClaudeStore.write(s)
+    }
+
+    /// Ringkasan tool dari payload PreToolUse: "Edit · Widget.swift", "Bash · swift build", "Grep · “pola”".
+    static func describeTool(_ payload: [String: Any]) -> String? {
+        guard let name = payload["tool_name"] as? String else { return nil }
+        let input = payload["tool_input"] as? [String: Any] ?? [:]
+        func clip(_ s: String, _ n: Int = 40) -> String {
+            let line = s.split(separator: "\n").first.map(String.init) ?? s
+            return line.count > n ? String(line.prefix(n - 1)) + "…" : line
+        }
+        let summary: String?
+        if let path = (input["file_path"] ?? input["notebook_path"] ?? input["path"]) as? String {
+            summary = (path as NSString).lastPathComponent
+        } else if let command = input["command"] as? String {
+            summary = clip(command)
+        } else if let pattern = input["pattern"] as? String {
+            summary = "“\(clip(pattern, 30))”"
+        } else if let url = (input["url"] as? String).flatMap(URL.init(string:)) {
+            summary = url.host
+        } else if let query = input["query"] as? String {
+            summary = clip(query, 30)
+        } else if let description = input["description"] as? String {
+            summary = clip(description, 34)
+        } else {
+            summary = nil
+        }
+        let short = name.hasPrefix("mcp__") ? (name.split(separator: "_").last.map(String.init) ?? name) : name
+        return summary.map { "\(short) · \($0)" } ?? short
+    }
+
+    /// Cari aplikasi (Terminal, iTerm, VS Code, app Claude, …) di antara proses induk hook ini.
+    static func hostApp() -> (pid: Int32, bundle: String)? {
+        var pid = getppid()
+        for _ in 0..<20 {
+            if let app = NSRunningApplication(processIdentifier: pid), app.activationPolicy == .regular,
+               let id = app.bundleIdentifier {
+                return (pid, id)
+            }
+            var info = kinfo_proc()
+            var size = MemoryLayout<kinfo_proc>.stride
+            var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+            guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+            let parent = info.kp_eproc.e_ppid
+            guard parent > 1 else { return nil }
+            pid = parent
+        }
+        return nil
     }
 
     static func state(for event: String, payload: [String: Any]) -> ClaudeState? {

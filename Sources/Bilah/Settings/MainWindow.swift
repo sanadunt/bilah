@@ -266,6 +266,7 @@ private struct ShortcutsPage: View {
     @ObservedObject var store: SettingsStore
     @State private var userShortcuts: [String] = []
     @State private var loadingShortcuts = true
+    @State private var editingCommand: CommandDraft?
 
     private var pinnedCount: Int { store.shortcuts.filter { $0.pinned && $0.enabled }.count }
 
@@ -277,6 +278,11 @@ private struct ShortcutsPage: View {
                     addApps()
                 } label: {
                     Label("Tambah aplikasi…", systemImage: "plus.app")
+                }
+                Button {
+                    editingCommand = CommandDraft()
+                } label: {
+                    Label("Tambah perintah…", systemImage: "terminal")
                 }
                 Menu {
                     if loadingShortcuts {
@@ -313,6 +319,14 @@ private struct ShortcutsPage: View {
             .padding(.horizontal, 12)
         }
         .onAppear(perform: loadShortcuts)
+        .sheet(item: $editingCommand) { draft in
+            CommandSheet(draft: draft) { saved in
+                store.addShortcut(.command(name: saved.name, script: saved.script, directory: saved.directory))
+                editingCommand = nil
+            } onCancel: {
+                editingCommand = nil
+            }
+        }
     }
 
     private func loadShortcuts() {
@@ -353,6 +367,10 @@ private struct ShortcutRow: View {
             return "Tidak ditemukan"
         }
         var parts = [entry.action.subtitle]
+        if case .command(_, let script, let dir) = entry.action {
+            parts.append(script.replacingOccurrences(of: "\n", with: "; "))
+            if !dir.isEmpty { parts.append(dir) }
+        }
         if let b = entry.action.builtin {
             if b.slider != nil { parts.append("slider") }
             if b.isToggle { parts.append("nyala/mati") }
@@ -406,6 +424,8 @@ private struct ShortcutIcon: View {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable().frame(width: 22, height: 22)
             case .shortcut:
                 Image(systemName: "wand.and.stars").foregroundStyle(.purple)
+            case .command:
+                Image(systemName: "terminal.fill").foregroundStyle(.green)
             case .builtin(let b):
                 Image(systemName: b.symbol)
                     .foregroundStyle(Color(nsColor: b.tint == Theme.text ? .white : b.tint))
@@ -494,6 +514,58 @@ private struct MusicPage: View {
         guard panel.runModal() == .OK, let url = panel.url, let id = Bundle(url: url)?.bundleIdentifier else { return }
         if !store.musicExtraApps.contains(id) { store.musicExtraApps.append(id) }
         store.musicApp = id
+    }
+}
+
+// MARK: Perintah
+
+struct CommandDraft: Identifiable {
+    let id = UUID()
+    var name = ""
+    var script = ""
+    var directory = ""
+}
+
+private struct CommandSheet: View {
+    @State var draft: CommandDraft
+    let onSave: (CommandDraft) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Tombol perintah").font(.title3.weight(.semibold))
+            Text("Dijalankan dengan zsh (seperti di Terminal). Tombolnya menampilkan ⏳ saat berjalan, lalu ✓ atau ✗. Output dicatat di ~/Library/Logs/Bilah/perintah.log.")
+                .font(.callout).foregroundStyle(.secondary)
+            TextField("Nama tombol, mis. Build Bilah", text: $draft.name)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Perintah").font(.caption).foregroundStyle(.secondary)
+                TextEditor(text: $draft.script)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(height: 80)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+            }
+            HStack {
+                TextField("Folder kerja (opsional), mis. ~/Projects/bilah", text: $draft.directory)
+                Button("Pilih…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    if panel.runModal() == .OK, let url = panel.url {
+                        draft.directory = url.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+                    }
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Batal", action: onCancel).keyboardShortcut(.cancelAction)
+                Button("Tambah") { onSave(draft) }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(draft.name.trimmingCharacters(in: .whitespaces).isEmpty
+                              || draft.script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 480)
     }
 }
 
@@ -890,6 +962,17 @@ private struct GeneralPage: View {
     var body: some View {
         PageScaffold(title: "Umum", subtitle: "Cara dashboard tampil di Touch Bar.") {
             Form {
+                Section {
+                    Toggle("Ingatkan istirahat", isOn: $store.restReminder)
+                    Stepper("Setelah \(store.restInterval) menit kerja tanpa jeda", value: $store.restInterval, in: 20...120, step: 5)
+                        .disabled(!store.restReminder)
+                } header: {
+                    Text("Pengingat istirahat")
+                } footer: {
+                    Text("Muncul di Touch Bar dan peliharaan ikut menyapa. Kalau kamu diam 5 menit, hitungannya mulai lagi dari nol.")
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Tema") {
                     Picker("Kapsul widget", selection: $store.pillStyle) {
                         ForEach(PillStyle.allCases) { Text($0.title).tag($0) }
