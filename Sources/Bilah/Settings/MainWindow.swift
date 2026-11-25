@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case widgets, shortcuts, general, pomodoro, claude, permissions, updates, about
+    case widgets, shortcuts, music, general, pomodoro, claude, permissions, updates, about
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum Page: String, CaseIterable, Identifiable {
         switch self {
         case .widgets: "Widget"
         case .shortcuts: "Pintasan"
+        case .music: "Musik"
         case .general: "Umum"
         case .pomodoro: "Pomodoro"
         case .claude: "Claude Code"
@@ -24,6 +25,7 @@ enum Page: String, CaseIterable, Identifiable {
         switch self {
         case .widgets: "square.grid.3x1.below.line.grid.1x2"
         case .shortcuts: "square.grid.2x2"
+        case .music: "music.note"
         case .general: "gearshape"
         case .pomodoro: "timer"
         case .claude: "sparkle"
@@ -125,6 +127,7 @@ struct MainView: View {
         switch navigation.page {
         case .widgets: WidgetsPage(store: store)
         case .shortcuts: ShortcutsPage(store: store)
+        case .music: MusicPage(store: store, music: dashboard.music)
         case .general: GeneralPage(store: store)
         case .pomodoro: PomodoroPage(store: store)
         case .claude: ClaudePage()
@@ -400,6 +403,88 @@ private struct ShortcutIcon: View {
     }
 }
 
+// MARK: Musik
+
+private struct MusicPage: View {
+    @ObservedObject var store: SettingsStore
+    @ObservedObject var music: MusicMonitor
+
+    private var choices: [String] {
+        var extra = store.musicExtraApps + music.seenApps
+        if !extra.contains(store.musicApp) { extra.append(store.musicApp) }
+        return MusicApps.choices(extra: extra)
+    }
+
+    var body: some View {
+        PageScaffold(title: "Musik",
+                     subtitle: "Widget Musik membaca lagu dari aplikasi apa pun yang muncul di Now Playing macOS: Spotify, Music, YouTube atau SoundCloud di browser, VLC, TIDAL, dan lainnya.") {
+            Form {
+                Section("Sumber") {
+                    Picker("Tampilkan", selection: $store.musicMode) {
+                        Text("Otomatis: apa pun yang sedang diputar").tag(MusicMode.auto)
+                        Text("Satu aplikasi saja").tag(MusicMode.app)
+                    }
+                    .pickerStyle(.radioGroup)
+                    HStack {
+                        Picker(store.musicMode == .app ? "Aplikasi" : "Dibuka saat belum ada musik",
+                               selection: $store.musicApp) {
+                            ForEach(choices, id: \.self) { id in
+                                Label {
+                                    Text(MusicApps.name(id))
+                                } icon: {
+                                    if let icon = MusicApps.icon(id) { Image(nsImage: icon) }
+                                }
+                                .tag(id)
+                            }
+                        }
+                        Button("Pilih aplikasi lain…", action: pickApp)
+                    }
+                    Text(store.musicMode == .app
+                         ? "Widget hanya menampilkan lagu dari \(MusicApps.name(store.musicApp)). Kalau aplikasinya tertutup, ketuk ▶ untuk membukanya."
+                         : "Kalau belum ada yang diputar, widget menampilkan \(MusicApps.name(store.musicApp)) dengan tombol ▶ untuk membukanya.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Sekarang") {
+                    if let info = music.info, info.hasTrack, let id = info.bundleID {
+                        HStack(spacing: 10) {
+                            if let icon = MusicApps.icon(id) {
+                                Image(nsImage: icon).resizable().frame(width: 28, height: 28)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(info.title).fontWeight(.medium)
+                                Text([info.artist, info.appName ?? MusicApps.name(id)].filter { !$0.isEmpty }.joined(separator: " · "))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(info.playing ? "Diputar" : "Dijeda").foregroundStyle(info.playing ? .green : .secondary)
+                        }
+                    } else {
+                        Text("Tidak ada yang sedang diputar.").foregroundStyle(.secondary)
+                    }
+                    Label(music.universal ? "Mode universal aktif: semua aplikasi terbaca"
+                                          : "Mode terbatas: hanya Spotify dan Music (lewat AppleScript)",
+                          systemImage: music.universal ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(music.universal ? .green : .orange)
+                        .font(.callout)
+                }
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    private func pickApp() {
+        let panel = NSOpenPanel()
+        panel.title = "Pilih aplikasi musik"
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        guard panel.runModal() == .OK, let url = panel.url, let id = Bundle(url: url)?.bundleIdentifier else { return }
+        if !store.musicExtraApps.contains(id) { store.musicExtraApps.append(id) }
+        store.musicApp = id
+    }
+}
+
 // MARK: Umum
 
 private struct GeneralPage: View {
@@ -597,7 +682,7 @@ private struct PermissionsPage: View {
                         }
                     }
                     PermissionRow(ok: nil, title: "Automation (Spotify / Music)",
-                                  detail: "Ditanyakan macOS saat widget Musik pertama kali membaca lagu.") {
+                                  detail: "Hanya dipakai untuk langsung memutar Spotify/Music yang tertutup, atau kalau mode universal tidak jalan.") {
                         Button("Buka pengaturan") {
                             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
                                 NSWorkspace.shared.open(url)

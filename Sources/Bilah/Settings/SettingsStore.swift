@@ -15,6 +15,12 @@ final class SettingsStore: ObservableObject {
     @Published var widgetWidths: [String: Double] { didSet { defaults.set(widgetWidths, forKey: "widgetWidths") } }
     /// Cara memakai sisa ruang Touch Bar: isi penuh (bawaan), sebar merata, atau rapat.
     @Published var spacing: SpacingMode { didSet { defaults.set(spacing.rawValue, forKey: "spacing") } }
+    /// Widget Musik: ikuti apa pun yang diputar (auto) atau satu aplikasi saja (app).
+    @Published var musicMode: MusicMode { didSet { defaults.set(musicMode.rawValue, forKey: "musicMode") } }
+    /// Aplikasi musik pilihan: disaring di mode satu aplikasi, dan dibuka saat belum ada yang diputar.
+    @Published var musicApp: String { didSet { defaults.set(musicApp, forKey: "musicApp") } }
+    /// Aplikasi tambahan yang dipilih lewat "Pilih aplikasi lain…".
+    @Published var musicExtraApps: [String] { didSet { defaults.set(musicExtraApps, forKey: "musicExtraApps") } }
     @Published var shortcuts: [ShortcutEntry] {
         didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
     }
@@ -33,6 +39,9 @@ final class SettingsStore: ObservableObject {
         // v0.7 menyimpan "spreadWidgets"; false (rapat) dipertahankan, selain itu pakai Isi penuh.
         spacing = defaults.string(forKey: "spacing").flatMap(SpacingMode.init(rawValue:))
             ?? (defaults.object(forKey: "spreadWidgets") as? Bool == false ? .packed : .fill)
+        musicMode = defaults.string(forKey: "musicMode").flatMap(MusicMode.init(rawValue:)) ?? .auto
+        musicApp = defaults.string(forKey: "musicApp") ?? MusicApps.defaultApp
+        musicExtraApps = defaults.stringArray(forKey: "musicExtraApps") ?? []
         shortcuts = Self.loadShortcuts(defaults)
     }
 
@@ -93,4 +102,8 @@ final class SettingsStore: ObservableObject {
         guard order.indices.contains(j) else { return }
         order.swapAt(i, j)
     }
+}
+
+enum MusicMode: String {
+    case auto, app
 }

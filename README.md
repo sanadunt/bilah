@@ -7,7 +7,7 @@ Dashboard Touch Bar untuk MacBook Pro. Tampil di semua aplikasi, bukan cuma saat
 | Widget | Isi | Ketuk |
 |---|---|---|
 | Claude Code | Status tiap sesi: lagi kerja, nunggu izin (kapsul berdenyut kuning), selesai | Pindah ke sesi berikutnya |
-| Musik | Spotify / Music: judul, artis, equalizer, cincin progres | Tombol ⏮ ⏯ ⏭; ketuk judul untuk membuka player |
+| Musik | Lagu dari aplikasi apa pun di Now Playing macOS (Spotify, Music, YouTube di browser, VLC, TIDAL, dll): judul, artis, equalizer, cincin progres | Tombol ⏮ ⏯ ⏭; ketuk judul untuk membuka aplikasinya; kalau belum ada yang diputar, ▶ membuka aplikasi musik pilihanmu |
 | Sistem | CPU + grafik 36 detik, RAM, baterai | – |
 | Pomodoro | Fokus → istirahat otomatis | Mulai / jeda / lanjut; ↺ untuk reset saat dijeda |
 | Jam | Jam dan tanggal | – |
@@ -58,6 +58,7 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
 
   ![Isi penuh](docs/preview-fill.png)
 - **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.
+- **Musik**: ikuti apa pun yang sedang diputar, atau satu aplikasi saja; pilih aplikasi yang dibuka saat belum ada musik.
 - **Umum**: lebar penuh atau dengan Control Strip, buka otomatis saat login.
 - **Pomodoro**: durasi fokus dan istirahat.
 - **Claude Code**: pasang hook dengan satu klik dan lihat sesi yang sedang berjalan.
@@ -90,7 +91,7 @@ Karena tiap rilis ditandatangani sertifikat yang sama, izin yang sudah diberikan
 - Memakai API Touch Bar privat (DFRFoundation), cara yang sama dengan Pock dan MTMR. Sudah dicek ada di macOS 26.5.2, tapi bisa hilang di versi berikutnya. Kalau hilang, Bilah menampilkan peringatan.
 - Brightness memakai `DisplayServices`, lampu keyboard dan Night Shift memakai `CoreBrightness`, mode gelap memakai `SkyLight`, dan Mission Control/App Exposé/desktop memakai notifikasi Dock. Semuanya privat. Yang diatur hanya layar bawaan MacBook.
 - Dikte tidak disertakan karena tidak ada cara andal untuk memicunya dari luar.
-- Widget Musik memakai AppleScript karena MediaRemote sudah dikunci Apple sejak macOS 15.4. Spotify/Music tidak pernah dibuka paksa.
+- Sejak macOS 15.4, MediaRemote (sumber Now Playing) hanya melayani proses milik Apple. Bilah memuat helper kecil (`Helpers/MediaRemoteBridge.m`) lewat `/usr/bin/perl` supaya tetap bisa membaca semua aplikasi. Kalau cara ini suatu saat diblokir, Bilah otomatis kembali ke AppleScript (hanya Spotify dan Music). Aplikasi musik tidak pernah dibuka tanpa kamu ketuk.
 - Kalau widget tidak muat, Claude dan Musik menyusut dulu; kalau masih tidak muat, dashboard bisa digeser ke kiri/kanan. Tidak ada widget yang disembunyikan.
 
 ## Pengembangan
@@ -116,6 +117,7 @@ Perintah bantu (jalankan dari `build/Bilah.app/Contents/MacOS/Bilah`):
 | `snapshot docs/preview.png` | Render bar dan slider ke PNG tanpa menyentuh Touch Bar |
 | `snapshot-window out.png [halaman]` | Render jendela utama ke PNG tanpa menampilkannya |
 | `hook-config` | Cetak konfigurasi hook Claude Code |
+| `music-status` | Tampilkan lagu yang terbaca dan jalurnya (universal atau cadangan) |
 
 ```
 Sources/Bilah/
@@ -129,6 +131,8 @@ Sources/Bilah/
   System/SystemControls         volume, brightness, screenshot, menu bar (Notification/Control Center)
   System/ShortcutActions        daftar tombol bawaan, status, dan eksekutor tiap aksi
   System/Updater                cek, unduh, verifikasi, pasang update dari GitHub
+  System/MusicMonitor           Now Playing semua aplikasi (MediaRemote lewat perl) + cadangan AppleScript
+Helpers/MediaRemoteBridge.m     helper Objective-C yang dimuat /usr/bin/perl
   Settings/                     SettingsStore (UserDefaults) + jendela utama SwiftUI
 ```
 

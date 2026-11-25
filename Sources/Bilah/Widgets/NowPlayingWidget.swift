@@ -1,153 +1,71 @@
 import AppKit
+import Combine
 import QuartzCore
 
-enum Player: String, CaseIterable {
-    case spotify = "Spotify"
-    case music = "Music"
-
-    var bundleID: String { self == .spotify ? "com.spotify.client" : "com.apple.Music" }
-    var tint: NSColor {
-        self == .spotify
-            ? NSColor(srgbRed: 0.12, green: 0.84, blue: 0.38, alpha: 1)
-            : NSColor(srgbRed: 0.98, green: 0.28, blue: 0.38, alpha: 1)
-    }
-}
-
-struct Track: Equatable {
-    var player: Player
-    var playing: Bool
-    var title: String
-    var artist: String
-    var position: Double
-    var duration: Double
-    var stamp: CFTimeInterval
-
-    /// Posisi diinterpolasi lokal di antara polling supaya cincin progres jalan halus.
-    var livePosition: Double {
-        playing ? min(duration, position + (CACurrentMediaTime() - stamp)) : position
-    }
-}
-
-/// Baca dan kontrol Spotify / Music lewat AppleScript (osascript di thread latar).
-/// MediaRemote sudah dikunci Apple sejak macOS 15.4, jadi ini jalur yang masih bisa dipakai.
-/// Aplikasi musik tidak pernah dibuka paksa: hanya ditanya kalau memang sedang jalan.
-final class NowPlayingSource {
-    private let queue = DispatchQueue(label: "bilah.nowplaying")
-    private static let sep = "|~|"
-
-    func fetch(_ done: @escaping (Track?) -> Void) {
-        let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
-        let players = Player.allCases.filter { running.contains($0.bundleID) }
-        guard !players.isEmpty else { done(nil); return }
-        queue.async {
-            let tracks = players.compactMap(Self.query)
-            let pick = tracks.first(where: \.playing) ?? tracks.first
-            DispatchQueue.main.async { done(pick) }
-        }
-    }
-
-    func send(_ command: String, to player: Player) {
-        queue.async { _ = Self.osascript("tell application \"\(player.rawValue)\" to \(command)") }
-    }
-
-    private static func query(_ p: Player) -> Track? {
-        let script = """
-        if application "\(p.rawValue)" is running then
-            tell application "\(p.rawValue)"
-                try
-                    set s to player state as string
-                    set t to name of current track
-                    set a to artist of current track
-                    set pos to player position
-                    set d to duration of current track
-                    return s & "\(sep)" & t & "\(sep)" & a & "\(sep)" & (pos as string) & "\(sep)" & (d as string)
-                end try
-            end tell
-        end if
-        return ""
-        """
-        guard let out = osascript(script), !out.isEmpty else { return nil }
-        let parts = out.components(separatedBy: sep)
-        guard parts.count == 5 else { return nil }
-        func num(_ s: String) -> Double { Double(s.replacingOccurrences(of: ",", with: ".")) ?? 0 }
-        var duration = num(parts[4])
-        if p == .spotify { duration /= 1000 } // Spotify memberi milidetik
-        return Track(player: p, playing: parts[0] == "playing", title: parts[1], artist: parts[2],
-                     position: num(parts[3]), duration: duration, stamp: CACurrentMediaTime())
-    }
-
-    private static func osascript(_ source: String, timeout: TimeInterval = 2.5) -> String? {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        p.arguments = ["-e", source]
-        let out = Pipe()
-        p.standardOutput = out
-        p.standardError = FileHandle.nullDevice
-        let finished = DispatchSemaphore(value: 0)
-        p.terminationHandler = { _ in finished.signal() }
-        do { try p.run() } catch { return nil }
-        if finished.wait(timeout: .now() + timeout) == .timedOut {
-            p.terminate()
-            return nil
-        }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+/// Apa yang ditampilkan widget Musik.
+enum NowPlayingDisplay: Equatable {
+    /// Lagu yang sedang diputar/dijeda di aplikasi apa pun.
+    case track(Track)
+    /// Belum ada lagu dari aplikasi pilihan: tampilkan aplikasinya dengan tombol ▶ untuk membuka/memutar.
+    case idle(bundleID: String, running: Bool)
 }
 
 final class NowPlayingWidget: Widget {
     let kind = WidgetKind.nowPlaying
-    private let source = NowPlayingSource()
-    private var track: Track?
-    private var ticks = 0
-    private var inFlight = false
+    private let settings: SettingsStore
+    private let music: MusicMonitor
     private let views = ViewSet<NowPlayingView>()
+    private var subscription: AnyCancellable?
+
+    init(settings: SettingsStore, music: MusicMonitor) {
+        self.settings = settings
+        self.music = music
+        subscription = music.$info.receive(on: RunLoop.main).sink { [weak self] _ in
+            DispatchQueue.main.async { self?.push() }
+        }
+    }
 
     func makeView() -> WidgetView {
         let v = NowPlayingView()
-        v.track = track
         v.onTap = { [weak self, weak v] p in
             guard let self, let v else { return }
             self.handle(v.zone(at: p))
         }
         views.add(v)
+        push()
         return v
     }
 
-    func tick() {
-        ticks += 1
-        if ticks % 2 == 1 { poll() }
+    func tick() { push() }
+
+    /// Mode Otomatis: lagu apa pun. Mode satu aplikasi: hanya lagu dari aplikasi itu.
+    private var display: NowPlayingDisplay {
+        let target = settings.musicApp
+        if let track = music.info?.track(), settings.musicMode == .auto || track.bundleID == target {
+            return .track(track)
+        }
+        return .idle(bundleID: target, running: MusicApps.isRunning(target))
     }
 
-    private func poll() {
-        guard !inFlight else { return }
-        inFlight = true
-        source.fetch { [weak self] t in
-            guard let self else { return }
-            self.inFlight = false
-            self.track = t
-            self.views.forEach { $0.track = t }
-        }
+    private func push() {
+        let d = display
+        views.forEach { $0.display = d }
     }
 
     private func handle(_ zone: NowPlayingView.Zone) {
-        guard var t = track else { return }
-        switch zone {
-        case .prev: source.send("previous track", to: t.player)
-        case .next: source.send("next track", to: t.player)
-        case .toggle:
-            // Ubah tampilan dulu supaya terasa instan, lalu konfirmasi lewat polling.
-            t.position = t.livePosition
-            t.stamp = CACurrentMediaTime()
-            t.playing.toggle()
-            track = t
-            views.forEach { $0.track = t }
-            source.send("playpause", to: t.player)
-        case .info:
-            NSRunningApplication.runningApplications(withBundleIdentifier: t.player.bundleID).first?.activate()
-            return
+        switch display {
+        case .track(let t):
+            switch zone {
+            case .toggle: music.send(.toggle, to: t.bundleID)
+            case .next: music.send(.next, to: t.bundleID)
+            case .prev: music.send(.previous, to: t.bundleID)
+            case .info:
+                NSRunningApplication.runningApplications(withBundleIdentifier: t.bundleID).first?.activate()
+            }
+        case .idle(let id, _):
+            music.open(id, play: zone == .toggle)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.poll() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.push() }
     }
 }
 
@@ -155,12 +73,10 @@ final class NowPlayingView: WidgetView {
     enum Zone { case info, prev, toggle, next }
     private static let zoneWidth: CGFloat = 31
 
-    /// Kalau sempit, tinggal tombol putar/jeda.
-    private var zones: [Zone] { bounds.width < 230 ? [.toggle] : [.prev, .toggle, .next] }
-
-    var track: Track? {
+    var display: NowPlayingDisplay = .idle(bundleID: MusicApps.music, running: false) {
         didSet {
-            animating = track?.playing == true
+            guard display != oldValue else { return }
+            if case .track(let t) = display { animating = t.playing } else { animating = false }
             needsDisplay = true
         }
     }
@@ -170,10 +86,16 @@ final class NowPlayingView: WidgetView {
     init() { super.init(width: 268, minWidth: 206, range: 180...420) }
     required init?(coder: NSCoder) { fatalError() }
 
+    /// Lagu: ⏮ ⏯ ⏭ (tinggal ⏯ kalau sempit). Aplikasi siap putar: cukup ▶.
+    private var zones: [Zone] {
+        if case .idle = display { return [.toggle] }
+        return bounds.width < 230 ? [.toggle] : [.prev, .toggle, .next]
+    }
+
     private var controlsX: CGFloat { bounds.width - Self.zoneWidth * CGFloat(zones.count) - 4 }
 
     func zone(at p: NSPoint) -> Zone {
-        guard track != nil, p.x >= controlsX else { return .info }
+        guard p.x >= controlsX else { return .info }
         let i = Int((p.x - controlsX) / Self.zoneWidth)
         return zones[min(zones.count - 1, max(0, i))]
     }
@@ -183,41 +105,54 @@ final class NowPlayingView: WidgetView {
     }
 
     override func drawContent(_ b: NSRect) {
-        guard let t = track else {
-            Draw.symbol("music.note", size: 12, weight: .medium, color: Theme.faint, center: NSPoint(x: 17, y: b.midY))
-            Draw.centered("Nggak ada yang diputar", Theme.font(11, .medium), Theme.secondary,
-                          x: 32, width: b.width - 40, centerY: b.midY)
-            return
-        }
         let pressedZone = pressPoint.map(zone(at:))
         if pressedZone == .info {
             Draw.roundedRect(NSRect(x: 0, y: 0, width: controlsX, height: b.height), radius: Theme.radius, fill: Theme.pillPressed)
         }
-
-        // Equalizer mini: bergerak saat main, rata saat jeda.
-        let time = Animator.now
-        for i in 0..<4 {
-            let wave = abs(sin(time * (3.1 + Double(i) * 1.3) + Double(i) * 1.7))
-            let h: CGFloat = t.playing ? 3 + 11 * CGFloat(wave) : 3
-            let r = NSRect(x: 9 + CGFloat(i) * 4.2, y: b.midY + 7 - h, width: 2.6, height: h)
-            Draw.roundedRect(r, radius: 1.3, fill: t.player.tint.withAlphaComponent(t.playing ? 1 : 0.5))
-        }
-
         let textWidth = controlsX - 32 - 6
-        Draw.line(t.title, Theme.font(11, .semibold), Theme.text, x: 32, y: 3, width: textWidth)
-        Draw.line(t.artist, Theme.font(9.5), Theme.secondary, x: 32, y: 16, width: textWidth)
 
-        for (i, zone) in zones.enumerated() {
-            let c = center(i)
-            if pressedZone == zone { Draw.circle(c, 12.5, Theme.pillPressed) }
-            let symbol = zone == .prev ? "backward.fill" : zone == .next ? "forward.fill" : (t.playing ? "pause.fill" : "play.fill")
-            Draw.symbol(symbol, size: zone == .toggle ? 10.5 : 9, weight: .bold, color: Theme.text, center: c)
+        switch display {
+        case .idle(let id, let running):
+            if let icon = MusicApps.icon(id) {
+                icon.draw(in: NSRect(x: 7, y: b.midY - 9, width: 18, height: 18), from: .zero, operation: .sourceOver,
+                          fraction: running ? 1 : 0.6, respectFlipped: true, hints: nil)
+            }
+            Draw.line(MusicApps.name(id), Theme.font(11, .semibold), Theme.text, x: 32, y: 3, width: textWidth)
+            Draw.line(running ? "Belum ada yang diputar" : "Tertutup · ketuk ▶ untuk buka", Theme.font(9.5),
+                      Theme.secondary, x: 32, y: 16, width: textWidth)
+            let c = center(0)
+            if pressedZone == .toggle { Draw.circle(c, 12.5, Theme.pillPressed) }
+            Draw.ring(c, 11.5, width: 1.8, color: Theme.track)
+            Draw.symbol("play.fill", size: 10.5, weight: .bold, color: Theme.text, center: NSPoint(x: c.x + 1, y: c.y))
+
+        case .track(let t):
+            // Equalizer mini: bergerak saat main, rata saat jeda.
+            let time = Animator.now
+            for i in 0..<4 {
+                let wave = abs(sin(time * (3.1 + Double(i) * 1.3) + Double(i) * 1.7))
+                let h: CGFloat = t.playing ? 3 + 11 * CGFloat(wave) : 3
+                let r = NSRect(x: 9 + CGFloat(i) * 4.2, y: b.midY + 7 - h, width: 2.6, height: h)
+                Draw.roundedRect(r, radius: 1.3, fill: t.tint.withAlphaComponent(t.playing ? 1 : 0.5))
+            }
+
+            // Sumber selain Spotify/Music (mis. browser) disebut di baris kedua.
+            let showsApp = !AppleScriptMusic.supported.contains(t.bundleID)
+            let subtitle = [t.artist, showsApp ? t.appName : ""].filter { !$0.isEmpty }.joined(separator: " · ")
+            Draw.line(t.title, Theme.font(11, .semibold), Theme.text, x: 32, y: 3, width: textWidth)
+            Draw.line(subtitle, Theme.font(9.5), Theme.secondary, x: 32, y: 16, width: textWidth)
+
+            for (i, zone) in zones.enumerated() {
+                let c = center(i)
+                if pressedZone == zone { Draw.circle(c, 12.5, Theme.pillPressed) }
+                let symbol = zone == .prev ? "backward.fill" : zone == .next ? "forward.fill" : (t.playing ? "pause.fill" : "play.fill")
+                Draw.symbol(symbol, size: zone == .toggle ? 10.5 : 9, weight: .bold, color: Theme.text, center: c)
+            }
+
+            // Progres lagu sebagai cincin di sekeliling tombol play.
+            let frac = t.duration > 0 ? CGFloat(t.livePosition / t.duration) : 0
+            let toggle = center(zones.firstIndex(of: .toggle) ?? 0)
+            Draw.ring(toggle, 11.5, width: 1.8, color: Theme.track)
+            Draw.ring(toggle, 11.5, width: 1.8, color: t.tint, to: frac)
         }
-
-        // Progres lagu sebagai cincin di sekeliling tombol play.
-        let frac = t.duration > 0 ? CGFloat(t.livePosition / t.duration) : 0
-        let toggle = center(zones.firstIndex(of: .toggle) ?? 0)
-        Draw.ring(toggle, 11.5, width: 1.8, color: Theme.track)
-        Draw.ring(toggle, 11.5, width: 1.8, color: t.player.tint, to: frac)
     }
 }

@@ -25,11 +25,19 @@ if [ ! -f build/AppIcon.icns ]; then
 fi
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
+# Helper Now Playing (MediaRemote lewat /usr/bin/perl), lihat Helpers/MediaRemoteBridge.m.
+mkdir -p "$APP/Contents/Frameworks"
+clang -dynamiclib -fobjc-arc -O2 -framework Foundation -framework AppKit \
+    -install_name @rpath/libBilahMediaRemote.dylib \
+    Helpers/MediaRemoteBridge.m -o "$APP/Contents/Frameworks/libBilahMediaRemote.dylib"
+
 if security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
-    codesign --force --sign "$IDENTITY" "$APP"
+    SIGN="$IDENTITY"
 else
     echo "Peringatan: sertifikat \"$IDENTITY\" tidak ada, pakai tanda tangan ad-hoc." >&2
-    codesign --force --sign - "$APP"
+    SIGN="-"
 fi
+codesign --force --sign "$SIGN" "$APP/Contents/Frameworks/libBilahMediaRemote.dylib"
+codesign --force --sign "$SIGN" "$APP"
 
 echo "Selesai: $APP (v$VERSION, build $BUILD_NUMBER)"

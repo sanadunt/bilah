@@ -29,8 +29,9 @@ enum Snapshot {
         claude.update(sessions: sessions, focusID: "a")
 
         let music = NowPlayingView()
-        music.track = Track(player: .spotify, playing: true, title: "Senja di Kota Tua", artist: "Band Fiktif",
-                            position: 132, duration: 245, stamp: CACurrentMediaTime())
+        music.display = .track(Track(bundleID: MusicApps.spotify, appName: "Spotify", playing: true,
+                                     title: "Senja di Kota Tua", artist: "Band Fiktif", position: 132, duration: 245,
+                                     stamp: CACurrentMediaTime()))
 
         let system = SystemView()
         system.cpuHistory = (0..<SystemView.historyLength).map { (i: Int) -> Double in
@@ -59,7 +60,7 @@ enum Snapshot {
         let fillClaude = ClaudeView()
         fillClaude.update(sessions: sessions, focusID: "b")
         let fillMusic = NowPlayingView()
-        fillMusic.track = music.track
+        fillMusic.display = music.display
         let fillControls = ControlsView(actions: [.builtin(.brightness), .builtin(.volume), .builtin(.screenshot),
                                                   .builtin(.notificationCenter)])
         fillControls.states = demoStates

@@ -16,6 +16,8 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private let claude = ClaudeWidget()
     private let pomodoro: PomodoroWidget
     private let runner = ShortcutRunner()
+    /// Lagu yang sedang diputar (semua aplikasi lewat MediaRemote, cadangan AppleScript).
+    let music = MusicMonitor()
     private let controls: ControlsWidget
     private let widgets: [WidgetKind: Widget]
 
@@ -48,7 +50,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         controls = ControlsWidget(settings: settings, runner: runner)
         widgets = [
             .claude: claude,
-            .nowPlaying: NowPlayingWidget(),
+            .nowPlaying: NowPlayingWidget(settings: settings, music: music),
             .system: SystemWidget(),
             .pomodoro: pomodoro,
             .clock: ClockWidget(),
@@ -60,6 +62,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     }
 
     func start() {
+        music.start()
         guard available else { return }
         PrivateTouchBar.setCloseBoxVisible(false)
 
@@ -93,6 +96,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     }
 
     func stop() {
+        music.stop()
         timer?.invalidate()
         if let bar = overlayBar { PrivateTouchBar.dismiss(bar) }
         if let tb = touchBar { PrivateTouchBar.dismiss(tb) }
