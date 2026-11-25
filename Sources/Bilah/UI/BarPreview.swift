@@ -120,7 +120,7 @@ struct LayoutToolbar: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .frame(width: 280)
-                    .help("Isi penuh: widget melebar mengisi sisa ruang. Sebar merata: sisa ruang jadi jarak. Rapat: semua di kiri.")
+                    .help("Isi penuh: ukuranmu jadi dasar, lalu widget melebar mengisi sisa ruang. Sebar merata: ukuran persis, sisa ruang jadi jarak. Rapat: ukuran persis, semua di kiri.")
                     Menu {
                         ForEach(hidden) { kind in
                             Button(kind.title) { store.setEnabled(kind, true) }

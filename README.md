@@ -54,7 +54,7 @@ Membuka Bilah (dari Launchpad, Finder, atau menu bar › **Buka Bilah…**) mena
 
   ![Atur tata letak](docs/layout-editor.png)
 
-  Sisa ruang dipakai sesuai pilihan jarak: **Isi penuh** (bawaan, widget melebar sampai batas maksimalnya sehingga tidak ada celah kosong; widget yang lebarnya kamu atur sendiri tetap), **Sebar merata** (sisa ruang jadi jarak), atau **Rapat** (semua di kiri).
+  Sisa ruang dipakai sesuai pilihan jarak: **Isi penuh** (bawaan: lebar yang kamu atur jadi ukuran dasar, lalu semua widget melebar sebanding mengisi sisa ruang sampai batas maksimalnya, jadi tidak ada celah kosong), **Sebar merata** (sisa ruang jadi jarak), atau **Rapat** (semua di kiri).
 
   ![Isi penuh](docs/preview-fill.png)
 - **Pintasan**: pilih tombol, pin favorit, tambah aplikasi dan Shortcuts.

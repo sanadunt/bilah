@@ -13,8 +13,8 @@ class WidgetView: NSView {
     private(set) var fixedWidth: CGFloat
     /// Lebar terkecil saat dashboard sempit. Hanya menyusut kalau pengguna belum mengatur lebarnya sendiri.
     private(set) var minWidth: CGFloat
-    /// Lebar terbesar di mode Isi penuh. Widget yang lebarnya diatur pengguna tidak ikut melebar.
-    private(set) var stretchMax: CGFloat
+    /// Lebar terbesar di mode Isi penuh. Lebar pilihan pengguna jadi ukuran dasar, lalu tetap boleh melebar.
+    var stretchMax: CGFloat { widthRange.upperBound }
 
     var isResizable: Bool { widthRange.lowerBound < widthRange.upperBound }
 
@@ -31,7 +31,6 @@ class WidgetView: NSView {
         shrinkMin = min(width, minWidth ?? width)
         self.minWidth = shrinkMin
         widthRange = range ?? width...width
-        stretchMax = widthRange.upperBound
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: Theme.height))
         allowedTouchTypes = [.direct]
     }
@@ -54,11 +53,9 @@ class WidgetView: NSView {
         if let width {
             fixedWidth = clampWidth(width)
             minWidth = fixedWidth
-            stretchMax = fixedWidth
         } else {
             fixedWidth = defaultWidth
             minWidth = shrinkMin
-            stretchMax = widthRange.upperBound
         }
         invalidateIntrinsicContentSize()
     }

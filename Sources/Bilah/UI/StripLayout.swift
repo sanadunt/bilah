@@ -2,7 +2,8 @@ import CoreGraphics
 
 /// Cara memakai sisa ruang saat semua widget muat.
 enum SpacingMode: String, CaseIterable, Identifiable {
-    /// Widget yang lebarnya bawaan melebar sampai batas maksimal; kalau masih sisa, baru jadi jarak.
+    /// Widget melebar sebanding sampai batas maksimalnya (lebar pilihan pengguna = ukuran dasar);
+    /// kalau semua sudah mentok, baru sisanya jadi jarak.
     case fill
     /// Sisa ruang dibagi rata sebagai jarak antar-widget.
     case spread
