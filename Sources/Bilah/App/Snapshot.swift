@@ -94,6 +94,29 @@ enum Snapshot {
             render(gameCanvas, to: (path as NSString).deletingPathExtension + suffix + ".png")
         }
 
+        // Halaman Info: sholat (perhitungan asli), sisanya data contoh (bukan clipboard/notifikasi sungguhan).
+        let infoCanvas = Canvas(frame: canvas.frame)
+        let prayer = PrayerView()
+        prayer.update(next: PrayerTimes.next(after: Date(), at: CityLocation.presets[0]), current: nil)
+        let calendarView = CalendarView()
+        calendarView.state = .event(title: "Sync mingguan tim", start: Date().addingTimeInterval(12 * 60),
+                                    end: Date().addingTimeInterval(42 * 60), color: Theme.blue, hasLink: true)
+        let weatherView = WeatherView()
+        weatherView.weather = WeatherNow(temperature: 29.4, code: 2, isDay: true)
+        weatherView.city = "Jakarta"
+        let networkView = NetworkView()
+        networkView.down = 1_350_000
+        networkView.up = 84_000
+        let badgesView = BadgesView()
+        badgesView.badges = [AppBadge(name: "Mail", label: "3", url: URL(fileURLWithPath: "/System/Applications/Mail.app")),
+                             AppBadge(name: "Messages", label: "12", url: URL(fileURLWithPath: "/System/Applications/Messages.app"))]
+        let clipView = ClipboardView()
+        clipView.items = ["git push origin main", "Halo, ini contoh teks", "https://example.com"]
+        let infoStrip = DashboardStripView(widgets: [prayer, calendarView, weatherView, networkView, badgesView, clipView], mode: .fill)
+        add(BarContainerView(leading: DashboardLeadingView(pageCount: 2, current: 1), content: infoStrip, width: barWidth),
+            to: infoCanvas, inset: inset)
+        render(infoCanvas, to: (path as NSString).deletingPathExtension + "-info.png")
+
         // Peliharaan di kotak kecil, di samping widget lain.
         let compactCanvas = Canvas(frame: canvas.frame)
         let compactWorld = PetWorld()

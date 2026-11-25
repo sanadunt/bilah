@@ -27,6 +27,7 @@ enum Theme {
     static let amber = NSColor(srgbRed: 1.00, green: 0.77, blue: 0.26, alpha: 1)
     static let green = NSColor(srgbRed: 0.30, green: 0.85, blue: 0.47, alpha: 1)
     static let red = NSColor(srgbRed: 1.00, green: 0.38, blue: 0.35, alpha: 1)
+    static let blue = NSColor(srgbRed: 0.35, green: 0.62, blue: 1.0, alpha: 1)
     static let teal = NSColor(srgbRed: 0.38, green: 0.82, blue: 0.93, alpha: 1)
     static let violet = NSColor(srgbRed: 0.68, green: 0.58, blue: 1.00, alpha: 1)
 

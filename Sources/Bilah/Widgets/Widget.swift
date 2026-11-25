@@ -2,6 +2,7 @@ import AppKit
 
 enum WidgetKind: String, CaseIterable, Codable, Identifiable {
     case claude, nowPlaying, system, pomodoro, clock, controls, pet
+    case prayer, calendar, weather, network, clipboard, badges
 
     var id: String { rawValue }
 
@@ -17,6 +18,12 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .clock: "Jam"
         case .controls: "Pintasan cepat"
         case .pet: "Peliharaan"
+        case .prayer: "Jadwal sholat"
+        case .calendar: "Rapat berikutnya"
+        case .weather: "Cuaca"
+        case .network: "Kecepatan internet"
+        case .clipboard: "Riwayat clipboard"
+        case .badges: "Badge aplikasi"
         }
     }
 
@@ -29,6 +36,12 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .clock: "clock"
         case .controls: "slider.horizontal.3"
         case .pet: "pawprint.fill"
+        case .prayer: "moon.stars.fill"
+        case .calendar: "calendar"
+        case .weather: "cloud.sun.fill"
+        case .network: "arrow.up.arrow.down"
+        case .clipboard: "doc.on.clipboard"
+        case .badges: "app.badge"
         }
     }
 
@@ -42,6 +55,12 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .clock: "Jam"
         case .controls: "Pintasan"
         case .pet: "Peliharaan"
+        case .prayer: "Sholat"
+        case .calendar: "Rapat"
+        case .weather: "Cuaca"
+        case .network: "Internet"
+        case .clipboard: "Clipboard"
+        case .badges: "Badge"
         }
     }
 
@@ -54,6 +73,12 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .clock: "Jam dan tanggal."
         case .controls: "Tombol favorit yang kamu pin, plus ⋯ untuk semua pintasan."
         case .pet: "Anjing dan kucing yang jalan-jalan, tidur, dan joget. Ketuk untuk mengelus."
+        case .prayer: "Waktu sholat berikutnya dan hitung mundurnya (Kemenag, dihitung offline)."
+        case .calendar: "Acara berikutnya dari Kalender; ketuk untuk membuka link rapat."
+        case .weather: "Suhu dan cuaca sekarang di kotamu (Open-Meteo)."
+        case .network: "Kecepatan unduh dan unggah saat ini."
+        case .clipboard: "Teks yang baru disalin; ketuk untuk menempelkannya lagi."
+        case .badges: "Aplikasi yang punya notifikasi belum dibaca (dari badge di Dock)."
         }
     }
 
@@ -66,6 +91,12 @@ enum WidgetKind: String, CaseIterable, Codable, Identifiable {
         case .clock: Theme.violet
         case .controls: Theme.secondary
         case .pet: NSColor(srgbRed: 1, green: 0.55, blue: 0.65, alpha: 1)
+        case .prayer: Theme.green
+        case .calendar: Theme.red
+        case .weather: Theme.teal
+        case .network: Theme.violet
+        case .clipboard: Theme.secondary
+        case .badges: Theme.red
         }
     }
 
@@ -139,7 +170,7 @@ final class DashboardLeadingView: WidgetView {
         let y0 = b.midY - step * CGFloat(shown - 1) / 2
         for i in 0..<shown {
             Draw.circle(NSPoint(x: 40, y: y0 + step * CGFloat(i)), i == current ? 2.4 : 1.5,
-                        i == current ? Theme.text : Theme.faint)
+                        i == current ? Theme.text : Theme.secondary.withAlphaComponent(0.6))
         }
     }
 }

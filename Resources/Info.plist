@@ -13,6 +13,8 @@
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>Bilah menampilkan rapat berikutnya dari Kalender di Touch Bar.</string>
+    <key>NSCalendarsUsageDescription</key><string>Bilah menampilkan rapat berikutnya dari Kalender di Touch Bar.</string>
     <key>NSAppleEventsUsageDescription</key><string>Bilah membaca lagu yang sedang diputar di Spotify atau Music dan mengontrol play/pause dari Touch Bar.</string>
 </dict>
 </plist>

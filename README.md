@@ -14,6 +14,21 @@ Dashboard Touch Bar untuk MacBook Pro. Tampil di semua aplikasi, bukan cuma saat
 | Peliharaan | Anjing dan kucing animasi: jalan, lari, duduk, tidur, joget saat musik diputar, kadang kejar-kejaran | Ketuk peliharaan untuk mengelus (❤ + namanya muncul); ketuk tempat kosong untuk memanggilnya |
 | Pintasan cepat | Tombol favorit yang kamu pin (default: kecerahan, volume, screenshot, notifikasi) | Jalankan pintasan; ⊞ membuka panel semua pintasan |
 
+## Halaman Info
+
+![Info](docs/preview-info.png)
+
+| Widget | Isi |
+|---|---|
+| Jadwal sholat | Waktu sholat berikutnya + hitung mundur; berdenyut saat waktunya masuk. Dihitung offline (parameter Kemenag RI) untuk kota pilihanmu. |
+| Rapat berikutnya | Acara berikutnya dari Kalender macOS. Ketuk untuk langsung membuka link Meet/Zoom/Teams. |
+| Cuaca | Suhu dan cuaca sekarang (Open-Meteo, tanpa akun). |
+| Kecepatan internet | Unduh dan unggah saat ini. |
+| Badge aplikasi | Aplikasi dengan notifikasi belum dibaca (badge di Dock); ketuk untuk membukanya. |
+| Riwayat clipboard | Teks yang baru disalin; ketuk untuk menempelkannya lagi. Hanya di memori, dan isi dari pengelola sandi tidak dicatat. |
+
+Lokasi diatur di jendela Bilah › **Info & Lokasi**.
+
 ## Peliharaan
 
 ![Peliharaan](docs/preview-pets.png)

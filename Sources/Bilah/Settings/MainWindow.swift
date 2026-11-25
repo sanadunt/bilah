@@ -3,7 +3,7 @@ import ServiceManagement
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case widgets, dashboards, shortcuts, music, pets, general, pomodoro, claude, permissions, updates, about
+    case widgets, dashboards, shortcuts, music, pets, info, general, pomodoro, claude, permissions, updates, about
 
     var id: String { rawValue }
 
@@ -14,6 +14,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .shortcuts: "Pintasan"
         case .music: "Musik"
         case .pets: "Peliharaan"
+        case .info: "Info & Lokasi"
         case .general: "Umum"
         case .pomodoro: "Pomodoro"
         case .claude: "Claude Code"
@@ -30,6 +31,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .shortcuts: "square.grid.2x2"
         case .music: "music.note"
         case .pets: "pawprint.fill"
+        case .info: "location.fill"
         case .general: "gearshape"
         case .pomodoro: "timer"
         case .claude: "sparkle"
@@ -134,6 +136,7 @@ struct MainView: View {
         case .shortcuts: ShortcutsPage(store: store)
         case .music: MusicPage(store: store, music: dashboard.music)
         case .pets: PetsPage(store: store, dashboard: dashboard)
+        case .info: InfoPage(store: store, clipboard: dashboard.clipboard)
         case .general: GeneralPage(store: store)
         case .pomodoro: PomodoroPage(store: store)
         case .claude: ClaudePage()
@@ -783,6 +786,100 @@ private struct DashboardsPage: View {
     }
 }
 
+// MARK: Info & Lokasi
+
+private struct InfoPage: View {
+    @ObservedObject var store: SettingsStore
+    let clipboard: ClipboardWidget
+    @State private var customName = ""
+    @State private var customLat = ""
+    @State private var customLon = ""
+    @State private var cleared = false
+
+    private static let time: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH.mm"
+        return f
+    }()
+
+    var body: some View {
+        PageScaffold(title: "Info & Lokasi",
+                     subtitle: "Lokasi untuk jadwal sholat dan cuaca, plus pengaturan widget info lainnya. Widget ini ada di halaman \"Info\": usap Touch Bar untuk melihatnya.") {
+            Form {
+                Section {
+                    Picker("Kota", selection: $store.location) {
+                        ForEach(CityLocation.presets, id: \.self) { Text($0.name).tag($0) }
+                        if !CityLocation.presets.contains(store.location) {
+                            Text(store.location.name).tag(store.location)
+                        }
+                    }
+                    HStack {
+                        TextField("Nama tempat", text: $customName)
+                        TextField("Lintang (mis. -6.2)", text: $customLat).frame(width: 130)
+                        TextField("Bujur (mis. 106.8)", text: $customLon).frame(width: 130)
+                        Button("Pakai") {
+                            if let lat = Double(customLat.replacingOccurrences(of: ",", with: ".")),
+                               let lon = Double(customLon.replacingOccurrences(of: ",", with: ".")),
+                               abs(lat) <= 90, abs(lon) <= 180 {
+                                store.location = CityLocation(name: customName.isEmpty ? "Lokasiku" : customName,
+                                                              latitude: lat, longitude: lon)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Lokasi")
+                } footer: {
+                    Text("Kota tidak ada di daftar? Isi koordinat sendiri (bisa dilihat di Apple Maps atau Google Maps).")
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    let times = PrayerTimes.times(for: Date(), at: store.location)
+                    HStack {
+                        ForEach(times, id: \.0) { prayer, time in
+                            VStack(spacing: 2) {
+                                Text(prayer.rawValue).font(.caption).foregroundStyle(.secondary)
+                                Text(Self.time.string(from: time)).font(.body.monospacedDigit()).fontWeight(.medium)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                } header: {
+                    Text("Jadwal sholat hari ini · \(store.location.name)")
+                } footer: {
+                    Text("Dihitung offline dengan parameter Kemenag RI (Subuh 20°, Isya 18°, Ashar Syafi'i, ihtiyat 2 menit). Bisa selisih 1–2 menit dari jadwal resmi daerahmu.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    HStack {
+                        Text("\(clipboard.history.items.count) teks tersimpan (hanya di memori, hilang saat Bilah ditutup)")
+                        Spacer()
+                        Button(cleared ? "Dibersihkan ✓" : "Bersihkan") {
+                            clipboard.history.clear()
+                            clipboard.push()
+                            cleared = true
+                        }
+                    }
+                } header: {
+                    Text("Riwayat clipboard")
+                } footer: {
+                    Text("Isi dari pengelola sandi (1Password, Bitwarden, dll.) tidak pernah dicatat. Ketuk salah satu teks di Touch Bar untuk menempelkannya lagi (butuh izin Aksesibilitas; tanpa izin, teks hanya disalin).")
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Lainnya") {
+                    Label("Rapat berikutnya memakai Kalender macOS; izinnya diminta saat widget pertama kali diketuk.", systemImage: "calendar")
+                    Label("Badge aplikasi dibaca dari Dock dan butuh izin Aksesibilitas.", systemImage: "app.badge")
+                    Label("Cuaca dari Open-Meteo, diperbarui tiap 20 menit. Hanya koordinat kota yang dikirim.", systemImage: "cloud.sun")
+                }
+                .foregroundStyle(.secondary)
+            }
+            .formStyle(.grouped)
+        }
+    }
+}
+
 // MARK: Umum
 
 private struct GeneralPage: View {
@@ -999,6 +1096,19 @@ private struct PermissionsPage: View {
                             Button("Minta izin") {
                                 SystemActions.requestAccessibility()
                                 SystemActions.openAccessibilitySettings()
+                            }
+                        }
+                    }
+                    PermissionRow(ok: CalendarService.authorized ? true : (CalendarService.denied ? false : nil),
+                                  title: "Kalender",
+                                  detail: "Untuk widget Rapat berikutnya.") {
+                        if !CalendarService.authorized {
+                            Button(CalendarService.denied ? "Buka pengaturan" : "Minta izin") {
+                                if CalendarService.denied {
+                                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")!)
+                                } else {
+                                    CalendarService().requestAccess()
+                                }
                             }
                         }
                     }

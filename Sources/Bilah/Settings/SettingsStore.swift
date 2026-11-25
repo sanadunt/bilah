@@ -41,6 +41,10 @@ final class SettingsStore: ObservableObject {
     @Published var petNightSleep: Bool { didSet { defaults.set(petNightSleep, forKey: "petNightSleep") } }
     /// true = peliharaan di kotak kecil (±40 pt per ekor, tidak jalan-jalan); false = area main lebar.
     @Published var petCompact: Bool { didSet { defaults.set(petCompact, forKey: "petCompact") } }
+    /// Kota untuk jadwal sholat dan cuaca.
+    @Published var location: CityLocation {
+        didSet { defaults.set(try? JSONEncoder().encode(location), forKey: "location") }
+    }
     @Published var shortcuts: [ShortcutEntry] {
         didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
     }
@@ -70,6 +74,8 @@ final class SettingsStore: ObservableObject {
         petDance = defaults.object(forKey: "petDance") as? Bool ?? true
         petNightSleep = defaults.object(forKey: "petNightSleep") as? Bool ?? true
         petCompact = defaults.object(forKey: "petCompact") as? Bool ?? false
+        location = defaults.data(forKey: "location").flatMap { try? JSONDecoder().decode(CityLocation.self, from: $0) }
+            ?? CityLocation.presets[0]
         shortcuts = Self.loadShortcuts(defaults)
         if !pages.indices.contains(currentPage) { currentPage = 0 }
         Theme.pillStyle = pillStyle
@@ -86,6 +92,18 @@ final class SettingsStore: ObservableObject {
     /// Halaman tersimpan, atau (pertama kali) susunan widget lama jadi halaman "Utama".
     /// Widget jenis baru ditambahkan ke tiap halaman dalam keadaan tersembunyi.
     private static func loadPages(_ defaults: UserDefaults) -> [DashboardPage] {
+        var pages = loadSavedPages(defaults)
+        // v0.13: widget info baru tinggal di halaman sendiri, supaya halaman "Utama" tidak berubah.
+        if !defaults.bool(forKey: "infoPageAdded") {
+            let info: [WidgetKind] = [.prayer, .calendar, .weather, .network, .badges, .clipboard]
+            pages.append(DashboardPage(name: "Info", order: info + WidgetKind.allCases.filter { !info.contains($0) },
+                                       disabled: Set(WidgetKind.allCases.filter { !info.contains($0) })))
+            defaults.set(true, forKey: "infoPageAdded")
+        }
+        return pages
+    }
+
+    private static func loadSavedPages(_ defaults: UserDefaults) -> [DashboardPage] {
         if let data = defaults.data(forKey: "pages"),
            var pages = try? JSONDecoder().decode([DashboardPage].self, from: data), !pages.isEmpty {
             for i in pages.indices {

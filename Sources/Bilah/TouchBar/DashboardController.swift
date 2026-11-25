@@ -19,6 +19,8 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     /// Lagu yang sedang diputar (semua aplikasi lewat MediaRemote, cadangan AppleScript).
     let music = MusicMonitor()
     private let controls: ControlsWidget
+    /// Riwayat clipboard (dipakai juga halaman Info di jendela).
+    let clipboard = ClipboardWidget()
     private let widgets: [WidgetKind: Widget]
 
     /// Bar sementara yang menggantikan dashboard: slider (layar/keyboard/volume) atau panel semua pintasan.
@@ -58,6 +60,12 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             .clock: ClockWidget(),
             .controls: controls,
             .pet: PetWidget(settings: settings, music: music),
+            .prayer: PrayerWidget(settings: settings),
+            .calendar: CalendarWidget(),
+            .weather: WeatherWidget(settings: settings),
+            .network: NetworkWidget(),
+            .clipboard: clipboard,
+            .badges: BadgesWidget(),
         ]
         super.init()
         runner.onOpenSlider = { [weak self] kind in self?.openOverlay(.slider(kind)) }
