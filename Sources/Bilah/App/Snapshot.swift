@@ -243,3 +243,69 @@ extension Snapshot {
         print("Tersimpan: \(path)")
     }
 }
+
+extension Snapshot {
+    /// `Bilah layout-check`: buat jendela utama persis seperti app (tanpa menampilkannya) dan pastikan isinya pas di
+    /// jendela, untuk 1/2/4/6 halaman × beberapa ukuran × semua halaman pengaturan (+ mode Atur tata letak).
+    /// Gagal kalau split view lebih tinggi/lebar dari jendela atau ada baris sidebar di luar jendela
+    /// (itulah gejala "menu kiri tidak bisa diklik").
+    static func layoutCheck() -> Bool {
+        _ = NSApplication.shared
+        var failures = 0, checks = 0
+        for pageCount in [1, 2, 4, 6] {
+            let suite = "bilah.layoutcheck.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defaults.set(true, forKey: "infoPageAdded")
+            let store = SettingsStore(defaults: defaults)
+            while store.pages.count < pageCount { store.addPage(named: "Halaman panjang \(store.pages.count + 1)") }
+            store.currentPage = 0
+            let dashboard = DashboardController(settings: store)
+            let nav = Navigation(), editor = LayoutEditorState()
+            let window = MainWindowController.makeWindow(MainView(store: store, dashboard: dashboard, updater: Updater(),
+                                                                   navigation: nav, editor: editor))
+            var cases: [(Page, Bool)] = Page.allCases.map { ($0, false) }
+            cases.append((.layout, true))
+            for size in [NSSize(width: 1080, height: 740), NSSize(width: 960, height: 640), NSSize(width: 860, height: 560)] {
+                window.setContentSize(size)
+                for (page, editing) in cases {
+                    nav.page = page
+                    editor.editing = editing
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.12))
+                    window.contentView?.layoutSubtreeIfNeeded()
+                    let problem = measure(window)
+                    checks += 1
+                    if let problem {
+                        failures += 1
+                        print("✗ \(pageCount) hlm · \(Int(size.width))×\(Int(size.height)) · \(page.rawValue)\(editing ? " (edit)" : "") · \(problem)")
+                    }
+                }
+            }
+            editor.editing = false
+            window.close()
+            defaults.removePersistentDomain(forName: suite)
+        }
+        print(failures == 0 ? "SEMUA PAS (\(checks) kombinasi)" : "ADA YANG MELUBER: \(failures) dari \(checks)")
+        return failures == 0
+    }
+
+    /// nil = pas; selain itu keterangan masalahnya.
+    private static func measure(_ window: NSWindow) -> String? {
+        let root = window.contentViewController!.view
+        let content = root.bounds
+        func find<T: NSView>(_ v: NSView, _ type: T.Type) -> [T] { ((v as? T).map { [$0] } ?? []) + v.subviews.flatMap { find($0, type) } }
+        guard let split = find(root, NSSplitView.self).first else { return "split view tidak ketemu" }
+        let s = root.convert(split.bounds, from: split)
+        if s.minX < -1 || s.maxX > content.width + 1 || s.minY < -1 || s.maxY > content.height + 1 {
+            return "split view x \(Int(s.minX)) y \(Int(s.minY)) \(Int(s.width))×\(Int(s.height)) di jendela \(Int(content.width))×\(Int(content.height))"
+        }
+        guard let sidebar = find(root, NSOutlineView.self).min(by: { root.convert($0.bounds, from: $0).minX < root.convert($1.bounds, from: $1).minX })
+        else { return "sidebar tidak ketemu" }
+        for r in 0..<sidebar.numberOfRows {
+            let rect = root.convert(sidebar.rect(ofRow: r), from: sidebar)
+            if rect.minX < -1 || rect.minY < -1 || rect.maxY > content.height + 1 {
+                return "baris sidebar \(r) di luar jendela (x \(Int(rect.minX)) y \(Int(rect.minY)))"
+            }
+        }
+        return nil
+    }
+}

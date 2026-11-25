@@ -93,17 +93,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let root = MainView(store: store, dashboard: dashboard, updater: updater, navigation: navigation,
                                 editor: editor)
-            let host = NSHostingController(rootView: root)
-            // Judul & toolbar SwiftUI diteruskan ke jendela AppKit (gaya System Settings).
-            host.sceneBridgingOptions = [.title, .toolbars]
-            let w = NSWindow(contentViewController: host)
-            w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-            w.toolbarStyle = .unified
-            w.title = "Bilah"
-            w.isReleasedWhenClosed = false
+            let w = Self.makeWindow(root)
             w.delegate = self
-            w.contentMinSize = NSSize(width: 860, height: 560)
-            w.setContentSize(NSSize(width: 1080, height: 740))
             w.center()
             w.setFrameAutosaveName("BilahWindow")
             window = w
@@ -114,6 +105,21 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         dashboard.refreshNow()
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Jendela utama (dipakai app dan alat uji `layout-check`, supaya yang diuji persis sama).
+    static func makeWindow(_ root: MainView) -> NSWindow {
+        let host = NSHostingController(rootView: root)
+        // Judul & toolbar SwiftUI diteruskan ke jendela AppKit (gaya System Settings).
+        host.sceneBridgingOptions = [.title, .toolbars]
+        let w = NSWindow(contentViewController: host)
+        w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        w.toolbarStyle = .unified
+        w.title = "Bilah"
+        w.isReleasedWhenClosed = false
+        w.contentMinSize = NSSize(width: 860, height: 560)
+        w.setContentSize(NSSize(width: 1080, height: 740))
+        return w
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -226,10 +232,13 @@ private struct PageScaffold<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Jangan pakai .fixedSize(vertical:) di sini: di dalam NavigationSplitView itu membuat seluruh halaman
+            // memakai tinggi idealnya (bisa 1.900 pt), sehingga isi dan sidebar terdorong keluar jendela.
+            // layoutPriority cukup supaya keterangan tetap utuh dan Form/List di bawahnya yang menggulung.
             Text(subtitle)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
                 .padding(.horizontal, 28)
                 .padding(.top, 14)
             content
@@ -787,15 +796,22 @@ struct PageBar: View {
     @State private var renaming = false
     @State private var newName = ""
 
+    private var pagePicker: some View {
+        Picker("Halaman", selection: Binding(get: { store.currentPage }, set: { store.showPage($0) })) {
+            ForEach(Array(store.pages.enumerated()), id: \.element.id) { i, page in Text(page.name).tag(i) }
+        }
+        .labelsHidden()
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             if store.pages.count > 1 {
-                Picker("Halaman", selection: Binding(get: { store.currentPage }, set: { store.showPage($0) })) {
-                    ForEach(Array(store.pages.enumerated()), id: \.element.id) { i, page in Text(page.name).tag(i) }
+                // Tombol tersegmen kalau muat; kalau sempit atau halamannya banyak, otomatis jadi menu tarik-turun.
+                // (Segmented + fixedSize saja tumbuh ±110 pt per halaman dan bisa mendorong sidebar keluar jendela.)
+                ViewThatFits(in: .horizontal) {
+                    pagePicker.pickerStyle(.segmented).fixedSize()
+                    pagePicker.pickerStyle(.menu).fixedSize()
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
             }
             Menu {
                 Button("Tambah halaman") { store.addPage(named: "Halaman \(store.pages.count + 1)") }

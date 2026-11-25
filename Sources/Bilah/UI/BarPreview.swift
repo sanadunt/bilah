@@ -143,27 +143,28 @@ struct LayoutToolbar: View {
                     Button("Selesai") { editor.editing = false }
                         .buttonStyle(.borderedProminent)
                 }
-                HStack(spacing: 12) {
-                    PageBar(store: store)
-                    Spacer()
-                    Picker("Jarak", selection: $store.spacing) {
-                        ForEach(SpacingMode.allCases) { Text($0.title).tag($0) }
+                // Satu baris kalau muat, dua baris kalau jendela sempit, supaya baris ini tidak pernah
+                // memaksa jendela lebih lebar dan mendorong sidebar keluar ke kiri.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        PageBar(store: store)
+                        Spacer(minLength: 12)
+                        spacingPicker
+                        addWidgetMenu
+                        resetButton
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 280)
-                    .help("Isi penuh: ukuranmu jadi dasar, lalu widget melebar mengisi sisa ruang. Sebar merata: ukuran persis, sisa ruang jadi jarak. Rapat: ukuran persis, semua di kiri.")
-                    Menu {
-                        ForEach(hidden) { kind in
-                            Button(kind.title) { store.setEnabled(kind, true) }
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 12) {
+                            PageBar(store: store)
+                            Spacer(minLength: 0)
+                            resetButton
                         }
-                    } label: {
-                        Label("Tambah widget", systemImage: "plus")
+                        HStack(spacing: 12) {
+                            spacingPicker
+                            addWidgetMenu
+                            Spacer(minLength: 0)
+                        }
                     }
-                    .disabled(hidden.isEmpty)
-                    .fixedSize()
-                    Button("Ukuran bawaan") { store.widgetWidths = [:] }
-                        .disabled(store.widgetWidths.isEmpty)
                 }
                 Text("Seret widget untuk menyusun · tarik garis di tepi kanannya untuk mengubah lebar · klik dua kali untuk ukuran bawaan · × untuk menyembunyikan")
                     .font(.caption)
@@ -183,6 +184,34 @@ struct LayoutToolbar: View {
                 .controlSize(.small)
             }
         }
+    }
+
+    private var spacingPicker: some View {
+        Picker("Jarak", selection: $store.spacing) {
+            ForEach(SpacingMode.allCases) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(minWidth: 220, idealWidth: 280, maxWidth: 280)
+        .help("Isi penuh: ukuranmu jadi dasar, lalu widget melebar mengisi sisa ruang. Sebar merata: ukuran persis, sisa ruang jadi jarak. Rapat: ukuran persis, semua di kiri.")
+    }
+
+    private var addWidgetMenu: some View {
+        Menu {
+            ForEach(hidden) { kind in
+                Button(kind.title) { store.setEnabled(kind, true) }
+            }
+        } label: {
+            Label("Tambah widget", systemImage: "plus")
+        }
+        .disabled(hidden.isEmpty)
+        .fixedSize()
+    }
+
+    private var resetButton: some View {
+        Button("Ukuran bawaan") { store.widgetWidths = [:] }
+            .disabled(store.widgetWidths.isEmpty)
+            .fixedSize()
     }
 
     private var capacity: some View {

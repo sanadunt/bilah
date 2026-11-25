@@ -9,6 +9,8 @@ if arguments.count > 1 {
     case "hook-config":
         print(HookConfig.json(executable: Bundle.main.executablePath ?? arguments[0]))
         exit(0)
+    case "layout-check":
+        exit(Snapshot.layoutCheck() ? 0 : 1)
     case "music-status":
         // Diagnosis: apa yang terbaca sebagai Now Playing, dan lewat jalur mana.
         let monitor = MusicMonitor()
