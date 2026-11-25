@@ -15,7 +15,7 @@ enum Snapshot {
 
     static func run(path: String) {
         _ = NSApplication.shared
-        let barWidth: CGFloat = 1085
+        let barWidth: CGFloat = 1004 // ruang Touch Bar terukur di MacBook Pro 13" M1
         let inset: CGFloat = 14
         let canvas = Canvas(frame: NSRect(x: 0, y: 0, width: barWidth + inset * 2, height: Theme.height + inset * 2))
 
@@ -50,32 +50,25 @@ enum Snapshot {
         controls.states = demoStates
 
         // Strip yang sama dengan di Touch Bar: kalau sempit, Claude dan Musik menyusut dulu, lalu bisa digeser.
-        let close = CloseView()
-        layout([close], in: canvas, inset: inset, barWidth: barWidth)
         let strip = DashboardStripView(widgets: [claude, music, system, pomodoro, ClockView(), controls])
-        let start = inset + close.fixedWidth + BarLayout.closeGap
-        strip.frame = NSRect(x: start, y: inset, width: inset + barWidth - start, height: Theme.height)
-        canvas.addSubview(strip)
+        add(BarContainerView(leading: CloseView(), content: strip, width: barWidth), to: canvas, inset: inset)
         render(canvas, to: path)
 
         // Mode slider volume.
         let sliderCanvas = Canvas(frame: canvas.frame)
-        let slider = SliderView(kind: .volume, width: 900)
+        let slider = SliderView(kind: .volume, width: barWidth)
         slider.value = 0.45
-        layout([CloseView(symbol: "xmark")], in: sliderCanvas, inset: inset, barWidth: barWidth)
-        slider.frame = NSRect(x: inset + 30 + 8, y: inset, width: slider.fixedWidth, height: Theme.height)
-        sliderCanvas.addSubview(slider)
+        add(BarContainerView(content: slider, width: barWidth), to: sliderCanvas, inset: inset)
         let sliderPath = (path as NSString).deletingPathExtension + "-slider.png"
         render(sliderCanvas, to: sliderPath)
 
         // Panel semua pintasan.
         let panelCanvas = Canvas(frame: canvas.frame)
-        layout([CloseView(symbol: "xmark")], in: panelCanvas, inset: inset, barWidth: barWidth)
         let panel = ShortcutPanelView(actions: BuiltinAction.allCases.filter { $0 != .inputSource }.map { .builtin($0) },
                                       width: barWidth - 38)
         panel.states = demoStates
-        panel.frame = NSRect(x: inset + 38, y: inset, width: panel.fixedWidth, height: Theme.height)
-        panelCanvas.addSubview(panel)
+        add(BarContainerView(content: panel, trailing: CloseView(symbol: "xmark"), width: barWidth),
+            to: panelCanvas, inset: inset)
         render(panelCanvas, to: (path as NSString).deletingPathExtension + "-panel.png")
     }
 
@@ -89,18 +82,10 @@ enum Snapshot {
         return s
     }
 
-    /// Taruh view berurutan; sisa ruang dibagi rata sebagai jarak (meniru flexibleSpace).
-    private static func layout(_ views: [WidgetView], startX: CGFloat? = nil,
-                               in canvas: NSView, inset: CGFloat, barWidth: CGFloat) {
-        let start = startX ?? inset
-        let used = views.reduce(0) { $0 + $1.fixedWidth }
-        let gap = views.count > 1 ? (inset + barWidth - start - used) / CGFloat(views.count - 1) : 0
-        var x = start
-        for v in views {
-            v.frame = NSRect(x: x, y: inset, width: v.fixedWidth, height: Theme.height)
-            canvas.addSubview(v)
-            x += v.fixedWidth + gap
-        }
+    private static func add(_ bar: BarContainerView, to canvas: NSView, inset: CGFloat) {
+        bar.frame = NSRect(x: inset, y: inset, width: bar.width, height: Theme.height)
+        canvas.addSubview(bar)
+        bar.layoutSubtreeIfNeeded()
     }
 
     private static func render(_ canvas: NSView, to path: String) {

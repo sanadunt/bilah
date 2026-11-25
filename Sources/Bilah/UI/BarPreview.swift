@@ -10,7 +10,9 @@ enum BarLayout {
 /// Touch Bar tiruan berisi strip dashboard yang sama persis dengan di Touch Bar (data live, bisa diklik dan digeser).
 final class BarPreviewView: NSView {
     static let inset: CGFloat = 14
-    static let size = NSSize(width: BarLayout.width + inset * 2, height: Theme.height + inset * 2)
+    /// Selebar ruang Touch Bar yang terukur, supaya preview sama persis dengan aslinya.
+    static var barWidth: CGFloat { min(BarLayout.width, TouchBarRegion.width(hideControlStrip: true)) }
+    static var size: NSSize { NSSize(width: barWidth + inset * 2, height: Theme.height + inset * 2) }
 
     private var signature = ""
     private var showsControlStrip = false
@@ -23,7 +25,7 @@ final class BarPreviewView: NSView {
         let bar = bounds.insetBy(dx: Self.inset - 4, dy: Self.inset - 4)
         Draw.roundedRect(bar, radius: 9, fill: .black)
         if showsControlStrip {
-            let strip = NSRect(x: Self.inset + BarLayout.width - BarLayout.controlStripWidth, y: Self.inset,
+            let strip = NSRect(x: Self.inset + Self.barWidth - BarLayout.controlStripWidth, y: Self.inset,
                                width: BarLayout.controlStripWidth, height: Theme.height)
             Draw.roundedRect(strip, radius: Theme.radius, fill: NSColor(white: 1, alpha: 0.05))
             Draw.centered("Control Strip", Theme.font(10, .medium), Theme.faint, x: strip.minX, width: strip.width,
@@ -38,15 +40,12 @@ final class BarPreviewView: NSView {
         subviews.forEach { $0.removeFromSuperview() }
         showsControlStrip = !settings.hideControlStrip
 
-        let close = CloseView()
-        close.frame = NSRect(x: Self.inset, y: Self.inset, width: close.fixedWidth, height: Theme.height)
-        addSubview(close)
-
-        let start = Self.inset + close.fixedWidth + BarLayout.closeGap
-        let end = Self.inset + BarLayout.width - (showsControlStrip ? BarLayout.controlStripWidth + BarLayout.closeGap : 0)
+        let width = Self.barWidth - (showsControlStrip ? BarLayout.controlStripWidth + BarLayout.closeGap : 0)
         let strip = DashboardStripView(widgets: settings.visibleWidgets.map(dashboard.makePreviewView))
-        strip.frame = NSRect(x: start, y: Self.inset, width: end - start, height: Theme.height)
-        addSubview(strip)
+        let bar = BarContainerView(leading: CloseView(), content: strip, width: width)
+        bar.frame = NSRect(x: Self.inset, y: Self.inset, width: width, height: Theme.height)
+        addSubview(bar)
+        bar.layoutSubtreeIfNeeded()
         needsDisplay = true
     }
 }

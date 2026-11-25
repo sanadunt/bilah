@@ -4,11 +4,8 @@ import Combine
 /// Mengelola bar dashboard (system-modal, tampil di semua aplikasi) dan ikon di Control Strip.
 final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject {
     static let trayID = NSTouchBarItem.Identifier("local.bilah.tray")
-    static let closeID = NSTouchBarItem.Identifier("local.bilah.close")
-    static let stripID = NSTouchBarItem.Identifier("local.bilah.strip")
-    static let overlayCloseID = NSTouchBarItem.Identifier("local.bilah.overlay.close")
-    static let sliderID = NSTouchBarItem.Identifier("local.bilah.slider")
-    static let panelID = NSTouchBarItem.Identifier("local.bilah.panel")
+    static let dashboardID = NSTouchBarItem.Identifier("local.bilah.dashboard")
+    static let overlayID = NSTouchBarItem.Identifier("local.bilah.overlay")
 
     let settings: SettingsStore
     let available = PrivateTouchBar.isAvailable
@@ -33,6 +30,10 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private weak var sliderView: SliderView?
     private weak var panelView: ShortcutPanelView?
     private var overlayIdleTimer: Timer?
+
+    // Wadah bar yang sedang tampil, supaya lebarnya bisa disesuaikan setelah Touch Bar diukur.
+    private weak var dashboardContainer: BarContainerView?
+    private weak var overlayContainer: BarContainerView?
 
     private var touchBar: NSTouchBar?
     private var trayItem: NSCustomTouchBarItem?
@@ -106,6 +107,23 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         PrivateTouchBar.present(tb, placement: settings.hideControlStrip ? 1 : 0, trayID: Self.trayID)
         isShown = true
         tick()
+        measureRegion()
+    }
+
+    private var regionWidth: CGFloat { TouchBarRegion.width(hideControlStrip: settings.hideControlStrip) }
+
+    /// Ukur lebar bar yang benar-benar tampil; kalau beda dengan yang diminta, simpan dan sesuaikan.
+    private func measureRegion() {
+        let hide = settings.hideControlStrip
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            TouchBarRegion.measure { [weak self] measured in
+                guard let self, let measured, measured > 200, hide == self.settings.hideControlStrip else { return }
+                if abs(measured - self.regionWidth) > 0.5 { TouchBarRegion.save(measured, hideControlStrip: hide) }
+                self.dashboardContainer?.width = measured
+                self.overlayContainer?.width = measured
+                LayoutReport.region = measured
+            }
+        }
     }
 
     func hide() {
@@ -120,8 +138,8 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private func rebuild() {
         let tb = NSTouchBar()
         tb.delegate = self
-        // Satu item strip berisi semua widget: lebarnya mengikuti ruang, jadi macOS tidak menyembunyikan apa pun.
-        tb.defaultItemIdentifiers = [Self.closeID, .fixedSpaceSmall, Self.stripID]
+        // Satu item selebar Touch Bar berisi tombol ‹ dan semua widget, jadi macOS tidak perlu membuang apa pun.
+        tb.defaultItemIdentifiers = [Self.dashboardID]
         touchBar = tb
         layoutSignature = settings.layoutSignature
     }
@@ -145,13 +163,11 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         overlay = new
         let tb = NSTouchBar()
         tb.delegate = self
-        switch new {
-        case .slider: tb.defaultItemIdentifiers = [Self.overlayCloseID, .fixedSpaceSmall, Self.sliderID, .flexibleSpace]
-        case .panel: tb.defaultItemIdentifiers = [Self.overlayCloseID, .fixedSpaceSmall, Self.panelID]
-        }
+        tb.defaultItemIdentifiers = [Self.overlayID]
         overlayBar = tb
         PrivateTouchBar.present(tb, placement: settings.hideControlStrip ? 1 : 0, trayID: Self.trayID)
         bumpOverlayIdle()
+        measureRegion()
     }
 
     /// Slider menutup sendiri setelah 3,5 detik tanpa sentuhan (seperti bawaan macOS), panel setelah 10 detik.
@@ -178,16 +194,15 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         if isShown { show() } else { PrivateTouchBar.setControlStripPresence(Self.trayID, true) }
     }
 
-    private var overlayWidth: CGFloat { settings.hideControlStrip ? 940 : 700 }
-
     private func makeSliderView(_ kind: SliderKind) -> SliderView {
-        let v = SliderView(kind: kind, width: overlayWidth - 40)
+        let v = SliderView(kind: kind, width: regionWidth)
         if let state = kind.read() {
             v.value = state.value
             v.muted = state.muted
         }
         v.onChange = { kind.write($0) }
         v.onInteract = { [weak self] in self?.bumpOverlayIdle() }
+        v.onClose = { [weak self] in self?.closeOverlay() }
         v.onIconTap = { [weak v] in
             guard kind == .volume, let v else { return }
             SystemVolume.setMuted(!v.muted)
@@ -199,7 +214,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 
     private func makePanelView() -> ShortcutPanelView {
         let actions = settings.panelActions
-        let v = ShortcutPanelView(actions: actions, width: overlayWidth)
+        let v = ShortcutPanelView(actions: actions, width: regionWidth - 38)
         v.states = ShortcutStates.current(for: actions)
         v.onInteract = { [weak self] in self?.bumpOverlayIdle() }
         v.onRun = { [weak self, weak v] action in
@@ -217,33 +232,35 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier id: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         let item = NSCustomTouchBarItem(identifier: id)
-        if id == Self.closeID || id == Self.overlayCloseID {
-            let v = CloseView(symbol: id == Self.closeID ? "chevron.left" : "xmark")
-            v.onTap = { [weak self] _ in id == Self.closeID ? self?.hide() : self?.closeOverlay() }
-            item.view = v
-            return item
-        }
-        if id == Self.sliderID, case .slider(let kind) = overlay {
-            item.view = makeSliderView(kind)
-            item.visibilityPriority = .high
-            return item
-        }
-        if id == Self.panelID {
-            item.view = makePanelView()
-            item.visibilityPriority = .high
-            return item
-        }
-        guard id == Self.stripID else { return nil }
-        let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap { widgets[$0]?.makeView() })
-        strip.onLayout = { available, content in LayoutReport.write(available: available, content: content) }
-        // Minta selebar mungkin, tapi boleh dipadatkan sampai 240 pt: Touch Bar yang menentukan lebar akhirnya.
-        let preferred = strip.widthAnchor.constraint(equalToConstant: BarLayout.width)
-        preferred.priority = .defaultLow
-        NSLayoutConstraint.activate([preferred, strip.widthAnchor.constraint(greaterThanOrEqualToConstant: 240)])
-        strip.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        strip.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        item.view = strip
         item.visibilityPriority = .high
+        switch id {
+        case Self.dashboardID:
+            let close = CloseView(symbol: "chevron.left")
+            close.onTap = { [weak self] _ in self?.hide() }
+            let strip = DashboardStripView(widgets: settings.visibleWidgets.compactMap { widgets[$0]?.makeView() })
+            strip.onLayout = { available, content in LayoutReport.write(available: available, content: content) }
+            let container = BarContainerView(leading: close, content: strip, width: regionWidth)
+            dashboardContainer = container
+            item.view = container
+        case Self.overlayID:
+            switch overlay {
+            case .slider(let kind):
+                // Slider membawa tombol + − × sendiri: [slider] [+] [−] [×].
+                let container = BarContainerView(content: makeSliderView(kind), width: regionWidth)
+                overlayContainer = container
+                item.view = container
+            case .panel:
+                let close = CloseView(symbol: "xmark")
+                close.onTap = { [weak self] _ in self?.closeOverlay() }
+                let container = BarContainerView(content: makePanelView(), trailing: close, width: regionWidth)
+                overlayContainer = container
+                item.view = container
+            case nil:
+                return nil
+            }
+        default:
+            return nil
+        }
         return item
     }
 
@@ -282,6 +299,9 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 /// Catatan kecil lebar strip yang benar-benar diberikan Touch Bar, untuk diagnosis
 /// (~/Library/Application Support/Bilah/layout.json).
 enum LayoutReport {
+    /// Lebar Touch Bar terukur terakhir (dari Accessibility).
+    static var region: CGFloat?
+
     static func write(available: CGFloat, content: CGFloat) {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Bilah", isDirectory: true)
@@ -290,6 +310,7 @@ enum LayoutReport {
             "stripWidth": Double(available),
             "contentWidth": Double(content),
             "scrollable": content > available + 0.5,
+            "measuredRegion": region.map { Double($0) } ?? NSNull(),
             "updated": ISO8601DateFormatter().string(from: Date()),
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) else { return }

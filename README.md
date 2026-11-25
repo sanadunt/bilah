@@ -28,7 +28,7 @@ Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua
 | Ekstra | Emoji & simbol, Kafein (Mac tetap melek) |
 | Tambahan kamu | Aplikasi apa pun dan Shortcuts dari app Shortcuts |
 
-Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider:
+Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider dengan urutan **slider | + | − | ×**: geser jalurnya, ketuk +/− untuk naik-turun 1/16 (tahan = berulang), × untuk menutup.
 
 ![Slider](docs/preview-slider.png)
 

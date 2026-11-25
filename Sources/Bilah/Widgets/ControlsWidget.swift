@@ -328,13 +328,15 @@ final class ShortcutPanelView: WidgetView {
 
 // MARK: - Slider besar
 
-/// Slider yang menggantikan dashboard sementara: [ikon] [−] [jalur] [+] [nilai].
-/// Geser di jalur untuk langsung ke nilai; ketuk −/+ untuk naik-turun 1/16 (tahan = berulang);
+/// Slider yang menggantikan dashboard sementara: [ikon · jalur · nilai] [+] [−] [×].
+/// Geser di jalur untuk langsung ke nilai; + dan − naik-turun 1/16 (tahan = berulang); × menutup;
 /// ketuk ikon speaker untuk bisu.
 final class SliderView: WidgetView {
-    private enum Part { case icon, minus, plus, track }
+    private enum Part { case icon, track, plus, minus, close }
 
     static let step: CGFloat = 1.0 / 16
+    private static let buttonWidth: CGFloat = 48
+    private static let gap: CGFloat = 6
 
     let kind: SliderKind
     var value: CGFloat = 0 { didSet { needsDisplay = true } }
@@ -345,6 +347,7 @@ final class SliderView: WidgetView {
 
     var onChange: ((CGFloat) -> Void)?
     var onIconTap: (() -> Void)?
+    var onClose: (() -> Void)?
     /// Dipanggil tiap sentuhan, supaya timer tutup-otomatis direset.
     var onInteract: (() -> Void)?
 
@@ -357,20 +360,27 @@ final class SliderView: WidgetView {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    // Tata letak (x): ikon 0–44 · − 44–80 · jalur · + (80 pt sebelum kanan) · nilai 58 pt terakhir.
-    private var iconCenter: NSPoint { NSPoint(x: 23, y: bounds.midY) }
-    private var minusCenter: NSPoint { NSPoint(x: 62, y: bounds.midY) }
-    private var plusCenter: NSPoint { NSPoint(x: bounds.width - 76, y: bounds.midY) }
-    private var track: NSRect {
-        let x0 = minusCenter.x + 26, x1 = plusCenter.x - 26
-        return NSRect(x: x0, y: bounds.midY - 3, width: max(10, x1 - x0), height: 6)
+    // Tata letak dari kanan: × · − · + , sisanya kapsul slider.
+    private func buttonRect(_ indexFromRight: Int) -> NSRect {
+        let x = bounds.width - CGFloat(indexFromRight + 1) * Self.buttonWidth - CGFloat(indexFromRight) * Self.gap
+        return NSRect(x: x, y: 0, width: Self.buttonWidth, height: bounds.height)
     }
 
-    private func part(at p: NSPoint) -> Part {
-        if p.x < 44 { return .icon }
-        if p.x < minusCenter.x + 18 { return .minus }
-        if p.x > plusCenter.x - 18 { return .plus }
-        return .track
+    private var closeRect: NSRect { buttonRect(0) }
+    private var minusRect: NSRect { buttonRect(1) }
+    private var plusRect: NSRect { buttonRect(2) }
+    private var sliderRect: NSRect { NSRect(x: 0, y: 0, width: max(120, plusRect.minX - Self.gap), height: bounds.height) }
+    private var iconCenter: NSPoint { NSPoint(x: 23, y: bounds.midY) }
+    private var track: NSRect {
+        NSRect(x: 50, y: bounds.midY - 3, width: max(10, sliderRect.maxX - 64 - 50), height: 6)
+    }
+
+    private func part(at p: NSPoint) -> Part? {
+        if closeRect.contains(p) { return .close }
+        if minusRect.contains(p) { return .minus }
+        if plusRect.contains(p) { return .plus }
+        guard sliderRect.contains(p) else { return nil }
+        return p.x < 44 ? .icon : .track
     }
 
     override func touchesBegan(with event: NSEvent) {
@@ -391,12 +401,10 @@ final class SliderView: WidgetView {
 
     private func begin(_ p: NSPoint) {
         onInteract?()
-        let hit = part(at: p)
+        guard let hit = part(at: p) else { return }
         pressed = hit
         switch hit {
-        case .icon:
-            break
-        case .minus, .plus:
+        case .plus, .minus:
             let delta = hit == .plus ? Self.step : -Self.step
             nudge(delta)
             // Tahan: setelah 0,4 detik, ulangi tiap 0,12 detik.
@@ -409,6 +417,8 @@ final class SliderView: WidgetView {
         case .track:
             isTracking = true
             update(p)
+        case .icon, .close:
+            break
         }
         needsDisplay = true
     }
@@ -422,11 +432,14 @@ final class SliderView: WidgetView {
     private func end(cancelled: Bool) {
         repeatTimer?.invalidate()
         repeatTimer = nil
-        if pressed == .icon, !cancelled { onIconTap?() }
+        let released = pressed
         pressed = nil
         isTracking = false
         needsDisplay = true
         onInteract?()
+        guard !cancelled else { return }
+        if released == .icon { onIconTap?() }
+        if released == .close { onClose?() }
     }
 
     /// Timer di mode .common supaya tetap jalan selama macOS melacak sentuhan.
@@ -438,8 +451,7 @@ final class SliderView: WidgetView {
 
     /// Naik/turun satu langkah, dibulatkan ke kelipatan 1/16 seperti tombol keyboard Mac.
     private func nudge(_ delta: CGFloat) {
-        let v = min(1, max(0, ((value + delta) / Self.step).rounded() * Self.step))
-        set(v)
+        set(min(1, max(0, ((value + delta) / Self.step).rounded() * Self.step)))
     }
 
     private func update(_ p: NSPoint) {
@@ -452,16 +464,16 @@ final class SliderView: WidgetView {
         onChange?(v)
     }
 
+    override func draw(_ dirtyRect: NSRect) {
+        // Tidak memakai kapsul tunggal WidgetView: slider dan tiap tombol punya kapsul sendiri.
+        drawContent(bounds)
+    }
+
     override func drawContent(_ b: NSRect) {
+        Draw.roundedRect(sliderRect, radius: Theme.radius, fill: Theme.pill)
         if pressed == .icon { Draw.circle(iconCenter, 13, Theme.pillPressed) }
         Draw.symbol(kind.symbol(value: value, muted: muted), size: 14, weight: .semibold,
                     color: muted ? Theme.secondary : kind.tint, center: iconCenter)
-
-        for (part, center, symbol) in [(Part.minus, minusCenter, "minus"), (Part.plus, plusCenter, "plus")] {
-            let atLimit = part == .minus ? value <= 0 : value >= 1
-            Draw.circle(center, 12, pressed == part ? Theme.pillPressed : NSColor(white: 1, alpha: 0.07))
-            Draw.symbol(symbol, size: 11, weight: .bold, color: atLimit ? Theme.faint : Theme.text, center: center)
-        }
 
         let t = track
         Draw.roundedRect(t, radius: 3, fill: Theme.track)
@@ -479,7 +491,19 @@ final class SliderView: WidgetView {
         NSGraphicsContext.restoreGraphicsState()
 
         let label = muted ? "Bisu" : "\(Int((value * 100).rounded()))%"
-        Draw.centered(label, Theme.mono(12.5, .semibold), Theme.text, x: b.width - 52, width: 44, centerY: b.midY,
-                      align: .right)
+        Draw.centered(label, Theme.mono(12.5, .semibold), Theme.text, x: sliderRect.maxX - 56, width: 46,
+                      centerY: b.midY, align: .right)
+
+        let buttons: [(Part, NSRect, String, Bool)] = [
+            (.plus, plusRect, "plus", value >= 1),
+            (.minus, minusRect, "minus", value <= 0),
+            (.close, closeRect, "xmark", false),
+        ]
+        for (part, rect, symbol, atLimit) in buttons {
+            Draw.roundedRect(rect, radius: Theme.radius, fill: pressed == part ? Theme.pillPressed : Theme.pill)
+            Draw.symbol(symbol, size: part == .close ? 11 : 12, weight: .bold,
+                        color: atLimit ? Theme.faint : (part == .close ? Theme.secondary : Theme.text),
+                        center: NSPoint(x: rect.midX, y: rect.midY))
+        }
     }
 }
