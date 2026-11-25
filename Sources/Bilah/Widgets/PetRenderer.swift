@@ -86,14 +86,17 @@ struct PetPose {
 
 /// Menggambar anjing/kucing gaya vektor. Koordinat lokal: menghadap kanan, tanah di y = 0, ke atas = negatif.
 enum PetRenderer {
+    /// `shadowY`: tinggi tanah untuk bayangan kalau peliharaan sedang di udara (game).
     static func draw(_ species: PetSpecies, _ p: PetPalette, pose: PetPose, at ground: NSPoint, facing: CGFloat,
-                     scale: CGFloat = 1) {
+                     scale: CGFloat = 1, shadowY: CGFloat? = nil) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        // Bayangan di tanah (tidak ikut melompat).
+        // Bayangan di tanah (tidak ikut melompat), mengecil saat peliharaan makin tinggi.
         ctx.saveGState()
-        ctx.setFillColor(NSColor.black.withAlphaComponent(0.35).cgColor)
-        let shadowW: CGFloat = (pose.kind == .sleep ? 26 : 24) * scale
-        ctx.fillEllipse(in: CGRect(x: ground.x - shadowW / 2, y: ground.y - 1.3 * scale, width: shadowW, height: 2.6 * scale))
+        let height = shadowY.map { max(0, $0 - ground.y) } ?? 0
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.35 * max(0.3, 1 - height / 20)).cgColor)
+        let shadowW: CGFloat = (pose.kind == .sleep ? 26 : 24) * scale * max(0.5, 1 - height / 30)
+        let sy = shadowY ?? ground.y
+        ctx.fillEllipse(in: CGRect(x: ground.x - shadowW / 2, y: sy - 1.3 * scale, width: shadowW, height: 2.6 * scale))
         ctx.restoreGState()
 
         ctx.saveGState()

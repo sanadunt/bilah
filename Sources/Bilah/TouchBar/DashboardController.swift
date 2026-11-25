@@ -25,12 +25,14 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private enum Overlay {
         case slider(SliderKind)
         case panel
+        case game
     }
 
     private var overlay: Overlay?
     private var overlayBar: NSTouchBar?
     private weak var sliderView: SliderView?
     private weak var panelView: ShortcutPanelView?
+    private weak var gameView: RunGameView?
     private var overlayIdleTimer: Timer?
 
     // Wadah bar yang sedang tampil, supaya lebarnya bisa disesuaikan setelah Touch Bar diukur.
@@ -59,6 +61,7 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
         ]
         super.init()
         runner.onOpenSlider = { [weak self] kind in self?.openOverlay(.slider(kind)) }
+        runner.onOpenGame = { [weak self] in self?.openGame() }
         controls.onOpenPanel = { [weak self] in self?.openOverlay(.panel) }
     }
 
@@ -175,6 +178,9 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
 
     // MARK: Overlay (slider dan panel pintasan)
 
+    /// Buka "Kejar Camilan" di Touch Bar.
+    func openGame() { openOverlay(.game) }
+
     private func openOverlay(_ new: Overlay) {
         guard available else { return }
         if case .slider(let kind) = new, !kind.isAvailable { return }
@@ -193,14 +199,18 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
     private func bumpOverlayIdle() {
         overlayIdleTimer?.invalidate()
         let seconds: TimeInterval
-        if case .panel = overlay { seconds = 10 } else { seconds = 3.5 }
+        switch overlay {
+        case .panel: seconds = 10
+        case .game: seconds = 45
+        default: seconds = 3.5
+        }
         let t = Timer(timeInterval: seconds, target: self, selector: #selector(overlayIdle), userInfo: nil, repeats: false)
         RunLoop.main.add(t, forMode: .common)
         overlayIdleTimer = t
     }
 
     @objc private func overlayIdle() {
-        if sliderView?.isTracking == true { bumpOverlayIdle() } else { closeOverlay() }
+        if sliderView?.isTracking == true || (gameView?.game.phase == .running) { bumpOverlayIdle() } else { closeOverlay() }
     }
 
     private func closeOverlay() {
@@ -267,6 +277,18 @@ final class DashboardController: NSObject, NSTouchBarDelegate, ObservableObject 
             case .slider(let kind):
                 // Slider membawa tombol − + × sendiri: [slider] [−] [+] [×].
                 let container = BarContainerView(content: makeSliderView(kind), width: regionWidth)
+                overlayContainer = container
+                item.view = container
+            case .game:
+                let close = CloseView(symbol: "xmark")
+                close.onTap = { [weak self] _ in self?.closeOverlay() }
+                let view = RunGameView(width: regionWidth - 38, pet: settings.pets.first ?? PetConfig.defaults[0],
+                                       best: UserDefaults.standard.integer(forKey: "gameBest")) {
+                    UserDefaults.standard.set($0, forKey: "gameBest")
+                }
+                view.onInteract = { [weak self] in self?.bumpOverlayIdle() }
+                gameView = view
+                let container = BarContainerView(content: view, trailing: close, width: regionWidth)
                 overlayContainer = container
                 item.view = container
             case .panel:

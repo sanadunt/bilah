@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(toggleItem)
         updateItem.target = self
         menu.addItem(updateItem)
+        menu.addItem(item("Main Kejar Camilan di Touch Bar", #selector(playGame)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Keluar Bilah", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         status.menu = menu
@@ -105,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleDashboard() { dashboard.toggle() }
+    @objc private func playGame() { dashboard.openGame() }
     @objc private func openWindow() { mainWindow.show() }
     @objc private func openAbout() { mainWindow.show(page: .about) }
 

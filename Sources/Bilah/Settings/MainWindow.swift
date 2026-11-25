@@ -130,7 +130,7 @@ struct MainView: View {
         case .widgets: WidgetsPage(store: store)
         case .shortcuts: ShortcutsPage(store: store)
         case .music: MusicPage(store: store, music: dashboard.music)
-        case .pets: PetsPage(store: store)
+        case .pets: PetsPage(store: store, dashboard: dashboard)
         case .general: GeneralPage(store: store)
         case .pomodoro: PomodoroPage(store: store)
         case .claude: ClaudePage()
@@ -492,6 +492,7 @@ private struct MusicPage: View {
 
 private struct PetsPage: View {
     @ObservedObject var store: SettingsStore
+    @ObservedObject var dashboard: DashboardController
 
     var body: some View {
         PageScaffold(title: "Peliharaan",
@@ -533,6 +534,28 @@ private struct PetsPage: View {
                          ? "Kotak kecil: ±40 pt per peliharaan. Mereka duduk, tidur, dan joget di tempat tanpa jalan-jalan."
                          : "Area main lebar: peliharaan jalan-jalan dan bisa dipanggil dengan mengetuk tempat kosong.")
                         .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Kejar Camilan").fontWeight(.medium)
+                            Text("\(store.pets.first?.name ?? "Peliharaanmu") lari di Touch Bar: ketuk untuk lompat, ketuk lagi di udara untuk lompat ganda. Lompati rintangan, jangan lompat saat burung lewat, kumpulkan camilan.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text("Rekor: \(UserDefaults.standard.integer(forKey: "gameBest"))")
+                                .font(.caption).monospacedDigit()
+                        }
+                        Spacer()
+                        Button {
+                            dashboard.openGame()
+                        } label: {
+                            Label("Main di Touch Bar", systemImage: "gamecontroller.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!dashboard.available)
+                    }
+                } header: {
+                    Text("Game")
                 }
 
                 Section("Kebiasaan") {

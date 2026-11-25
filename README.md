@@ -24,6 +24,14 @@ Mau hemat tempat? Pilih **Kotak kecil** di halaman Peliharaan: ±40 pt per pelih
 
 ![Peliharaan kotak kecil](docs/preview-pets-compact.png)
 
+## Game: Kejar Camilan
+
+![Kejar Camilan](docs/preview-game.png)
+
+Peliharaan pertamamu lari di Touch Bar. **Ketuk di mana saja untuk lompat** (ketuk sebentar = lompat pendek, ketuk lagi di udara = lompat ganda yang melayang). Lompati kardus, hidran, dan bola. **Jangan lompat saat burung lewat**, karena burung terbang tepat setinggi lompatanmu. Kumpulkan camilan (tulang untuk anjing, ikan untuk kucing, masing-masing +10). Makin jauh makin cepat, dan rekor tertinggi disimpan.
+
+Buka lewat tombol 🎮 di panel Pintasan (bisa di-pin), menu bar › **Main Kejar Camilan di Touch Bar**, atau jendela Bilah › **Peliharaan**. Tutup dengan ×.
+
 ## Pintasan
 
 Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua tombol bawaan Mac, mirip Expanded Control Strip. Kalau tidak muat, geser panelnya.
@@ -36,7 +44,7 @@ Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua
 | Suara & media | Volume (slider), bisu, lagu sebelumnya, putar/jeda, lagu berikutnya |
 | Jendela | Mission Control, App Exposé, tampilkan desktop, Apps (Launchpad) |
 | Sistem | Spotlight, Siri, screenshot, Notification Center, Control Center (Focus, Wi-Fi), kunci layar, sleep, screen saver, ganti bahasa keyboard |
-| Ekstra | Emoji & simbol, Kafein (Mac tetap melek) |
+| Ekstra | Emoji & simbol, Kafein (Mac tetap melek), Game: Kejar Camilan |
 | Tambahan kamu | Aplikasi apa pun dan Shortcuts dari app Shortcuts |
 
 Tombol yang punya status (Night Shift, mode gelap, bisu, Kafein) menyala saat aktif. Kecerahan, lampu keyboard, dan volume membuka slider dengan urutan **slider | − | + | ×**: geser jalurnya, ketuk −/+ untuk naik-turun 1/16 (tahan = berulang), × untuk menutup.
@@ -143,6 +151,7 @@ Sources/Bilah/
   System/SystemControls         volume, brightness, screenshot, menu bar (Notification/Control Center)
   System/ShortcutActions        daftar tombol bawaan, status, dan eksekutor tiap aksi
   System/Updater                cek, unduh, verifikasi, pasang update dari GitHub
+  Game/                         Kejar Camilan: mesin game (logika murni) + tampilan Touch Bar
   System/MusicMonitor           Now Playing semua aplikasi (MediaRemote lewat perl) + cadangan AppleScript
 Helpers/MediaRemoteBridge.m     helper Objective-C yang dimuat /usr/bin/perl
   Settings/                     SettingsStore (UserDefaults) + jendela utama SwiftUI

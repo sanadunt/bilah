@@ -18,7 +18,7 @@ enum BuiltinAction: String, CaseIterable, Codable {
     case volume, mute, previous, playPause, next
     case missionControl, appExpose, showDesktop, apps
     case spotlight, siri, screenshot, notificationCenter, controlCenter, lockScreen, sleep, screenSaver
-    case inputSource, emoji, keepAwake
+    case inputSource, emoji, keepAwake, game
 
     var title: String {
         switch self {
@@ -46,6 +46,7 @@ enum BuiltinAction: String, CaseIterable, Codable {
         case .inputSource: "Ganti bahasa keyboard"
         case .emoji: "Emoji & simbol"
         case .keepAwake: "Kafein (Mac tetap melek)"
+        case .game: "Game: Kejar Camilan"
         }
     }
 
@@ -75,6 +76,7 @@ enum BuiltinAction: String, CaseIterable, Codable {
         case .inputSource: "globe"
         case .emoji: "face.smiling"
         case .keepAwake: "cup.and.saucer.fill"
+        case .game: "gamecontroller.fill"
         }
     }
 
@@ -85,7 +87,7 @@ enum BuiltinAction: String, CaseIterable, Codable {
         case .missionControl, .appExpose, .showDesktop, .apps: .windows
         case .spotlight, .siri, .screenshot, .notificationCenter, .controlCenter, .lockScreen, .sleep, .screenSaver,
              .inputSource: .system
-        case .emoji, .keepAwake: .extra
+        case .emoji, .keepAwake, .game: .extra
         }
     }
 
@@ -113,6 +115,7 @@ enum BuiltinAction: String, CaseIterable, Codable {
         case .mute: Theme.red
         case .darkMode: Theme.violet
         case .keepAwake: Theme.coral
+        case .game: Theme.violet
         default: Theme.text
         }
     }
@@ -245,6 +248,7 @@ struct ShortcutStates {
 
 final class ShortcutRunner {
     var onOpenSlider: ((SliderKind) -> Void)?
+    var onOpenGame: (() -> Void)?
 
     /// false = gagal, biasanya karena izin Aksesibilitas belum ada (dialognya sudah diminta).
     @discardableResult
@@ -293,6 +297,7 @@ final class ShortcutRunner {
         case .sleep: SystemShortcuts.sleepNow()
         case .screenSaver: SystemShortcuts.openApp("/System/Library/CoreServices/ScreenSaverEngine.app")
         case .inputSource: InputSources.selectNext()
+        case .game: onOpenGame?()
         case .brightness, .keyboardBrightness, .volume: break
         }
         return true

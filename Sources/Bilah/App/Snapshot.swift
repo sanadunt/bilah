@@ -71,6 +71,29 @@ enum Snapshot {
         add(BarContainerView(leading: CloseView(), content: petView, width: barWidth), to: petCanvas, inset: inset)
         render(petCanvas, to: (path as NSString).deletingPathExtension + "-pets.png")
 
+        // Game: jalankan beberapa detik dengan lompat otomatis sampai ada rintangan, camilan, dan lompatan.
+        for (suffix, seconds) in [("-game-ready", 0.0), ("-game", 14.0)] {
+            let gameCanvas = Canvas(frame: canvas.frame)
+            let gameView = RunGameView(width: barWidth - 38, pet: PetConfig.defaults[0], best: 1240) { _ in }
+            let g = gameView.game
+            if seconds > 0 {
+                g.press()
+                var t = 0.0
+                var captured = false
+                while t < seconds + 20 && !captured {
+                    let (_, front) = RunGame.hitX(g.petX)
+                    if let o = g.obstacles.filter({ $0.kind != .bird && $0.x + $0.width > g.petX - 8 }).min(by: { $0.x < $1.x }),
+                       g.onGround, o.x - front <= g.speed * 0.189 - (o.width + 11) / 2 { g.press() }
+                    g.step(1.0 / 60)
+                    t += 1.0 / 60
+                    captured = t > seconds && !g.onGround && g.obstacles.count >= 3 && g.treats.contains { !$0.taken }
+                }
+            }
+            add(BarContainerView(content: gameView, trailing: CloseView(symbol: "xmark"), width: barWidth),
+                to: gameCanvas, inset: inset)
+            render(gameCanvas, to: (path as NSString).deletingPathExtension + suffix + ".png")
+        }
+
         // Peliharaan di kotak kecil, di samping widget lain.
         let compactCanvas = Canvas(frame: canvas.frame)
         let compactWorld = PetWorld()
