@@ -27,6 +27,8 @@ final class SettingsStore: ObservableObject {
     @Published var petDance: Bool { didSet { defaults.set(petDance, forKey: "petDance") } }
     /// Peliharaan lebih sering tidur pukul 23.00–06.00.
     @Published var petNightSleep: Bool { didSet { defaults.set(petNightSleep, forKey: "petNightSleep") } }
+    /// true = peliharaan di kotak kecil (±40 pt per ekor, tidak jalan-jalan); false = area main lebar.
+    @Published var petCompact: Bool { didSet { defaults.set(petCompact, forKey: "petCompact") } }
     @Published var shortcuts: [ShortcutEntry] {
         didSet { defaults.set(try? JSONEncoder().encode(shortcuts), forKey: "shortcuts") }
     }
@@ -52,6 +54,7 @@ final class SettingsStore: ObservableObject {
             ?? PetConfig.defaults
         petDance = defaults.object(forKey: "petDance") as? Bool ?? true
         petNightSleep = defaults.object(forKey: "petNightSleep") as? Bool ?? true
+        petCompact = defaults.object(forKey: "petCompact") as? Bool ?? false
         shortcuts = Self.loadShortcuts(defaults)
     }
 
@@ -97,7 +100,7 @@ final class SettingsStore: ObservableObject {
         visibleWidgets.map(\.rawValue).joined(separator: ",") + "|\(hideControlStrip)|"
             + pinnedActions.map(\.id).joined(separator: ",")
             + "|" + widgetWidths.sorted { $0.key < $1.key }.map { "\($0.key)=\(Int($0.value))" }.joined(separator: ",")
-            + "|\(spacing.rawValue)"
+            + "|\(spacing.rawValue)|pet=\(petCompact ? "kotak" : "lebar")x\(pets.count)"
     }
 
     func isEnabled(_ kind: WidgetKind) -> Bool { !disabled.contains(kind) }

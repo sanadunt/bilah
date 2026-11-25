@@ -53,6 +53,24 @@ final class PetWorld {
 
     static let margin: CGFloat = 20
 
+    /// Kotak kecil: tiap peliharaan diam di "kursinya" sendiri (tidak jalan-jalan), saling berhadapan.
+    private(set) var compact = false
+
+    func setCompact(_ on: Bool) {
+        compact = on
+        if on { seatPets() }
+    }
+
+    /// Posisi tetap di tengah slot masing-masing; yang sedang jalan/lari berhenti.
+    private func seatPets() {
+        for (i, pet) in pets.enumerated() {
+            pet.x = (CGFloat(i) + 0.5) / CGFloat(max(1, pets.count))
+            pet.target = nil
+            pet.facing = pets.count > 1 && i % 2 == 1 ? -1 : 1
+            if pet.mode == .walk || pet.mode == .run { pet.set(.sit, now: CACurrentMediaTime(), for: 3) }
+        }
+    }
+
     func sync(_ configs: [PetConfig]) {
         let old = Dictionary(uniqueKeysWithValues: pets.map { ($0.config.id, $0) })
         pets = configs.enumerated().map { i, config in
@@ -64,6 +82,7 @@ final class PetWorld {
             let start = configs.count == 1 ? 0.5 : CGFloat(i) / CGFloat(max(1, configs.count - 1)) * 0.6 + 0.2
             return Pet(config: config, x: start)
         }
+        if compact { seatPets() }
     }
 
     // MARK: Langkah waktu
@@ -123,7 +142,7 @@ final class PetWorld {
     private func choose(_ pet: Pet, now: Double, music: Bool, night: Bool) {
         let bored = now - lastInteraction > 120
         // Sesekali anjing mengajak kucing kejar-kejaran.
-        if pet.config.species == .dog, !night, Double.random(in: 0...1) < 0.08,
+        if !compact, pet.config.species == .dog, !night, Double.random(in: 0...1) < 0.08,
            let cat = pets.first(where: { $0.config.species == .cat && $0.mode != .sleep }) {
             pet.mode = .run
             pet.target = cat.x
@@ -131,8 +150,9 @@ final class PetWorld {
             cat.target = cat.x < 0.5 ? 0.95 : 0.05
             return
         }
-        var options: [(Pet.Mode, Double)] = [(.idle, 22), (.sit, 25), (.walk, 34), (.run, 6),
-                                             (.sleep, night ? 140 : bored ? 30 : 6)]
+        var options: [(Pet.Mode, Double)] = compact
+            ? [(.idle, 35), (.sit, 50), (.sleep, night ? 140 : bored ? 30 : 6)]
+            : [(.idle, 22), (.sit, 25), (.walk, 34), (.run, 6), (.sleep, night ? 140 : bored ? 30 : 6)]
         if music { options.append((.dance, 80)) }
         let total = options.reduce(0) { $0 + $1.1 }
         var roll = Double.random(in: 0..<total)
@@ -161,7 +181,7 @@ final class PetWorld {
     func tap(at x: CGFloat, now: Double) {
         lastInteraction = now
         let x = min(1, max(0, x))
-        let reach = 16 / max(span, 40)
+        let reach = compact ? 1 : 16 / max(span, 40)
         if let pet = pets.min(by: { abs($0.x - x) < abs($1.x - x) }), abs(pet.x - x) <= reach {
             if pet.mode == .sleep { spawn(.alert, at: pet.x, now: now, life: 0.9) }
             pet.target = nil
@@ -231,12 +251,15 @@ final class PetWidget: Widget {
     private var timer: Timer?
     private var last = CACurrentMediaTime()
     private var subscription: AnyCancellable?
+    private var compactSubscription: AnyCancellable?
 
     init(settings: SettingsStore, music: MusicMonitor) {
         self.settings = settings
         self.music = music
         world.sync(settings.pets)
+        world.setCompact(settings.petCompact)
         subscription = settings.$pets.sink { [weak self] in self?.world.sync($0) }
+        compactSubscription = settings.$petCompact.sink { [weak self] in self?.world.setCompact($0) }
         let t = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.step() }
         RunLoop.main.add(t, forMode: .common)
         timer = t
@@ -245,7 +268,7 @@ final class PetWidget: Widget {
     var ticksWhenHidden: Bool { false }
 
     func makeView() -> WidgetView {
-        let v = PetView(world: world)
+        let v = PetView(world: world, compact: settings.petCompact, count: settings.pets.count)
         v.onTap = { [weak self, weak v] p in
             guard let self, let v else { return }
             self.world.tap(at: v.normalized(p.x), now: CACurrentMediaTime())
@@ -263,7 +286,7 @@ final class PetWidget: Widget {
         var widest: CGFloat = 0
         views.forEach { widest = max(widest, $0.bounds.width) }
         guard widest > 0 else { return }
-        world.span = widest - PetWorld.margin * 2
+        world.span = widest - (world.compact ? 0 : PetWorld.margin * 2)
         world.step(now: now, dt: dt, musicPlaying: music.info?.playing == true, dance: settings.petDance,
                    nightSleep: settings.petNightSleep)
         views.forEach { $0.needsDisplay = true }
@@ -272,20 +295,28 @@ final class PetWidget: Widget {
 
 final class PetView: WidgetView {
     private let world: PetWorld
+    private let margin: CGFloat
 
-    init(world: PetWorld) {
+    /// Kotak kecil: ±40 pt per peliharaan. Area main: 200 pt bawaan, bisa 120–600 pt.
+    init(world: PetWorld, compact: Bool = false, count: Int = 2) {
         self.world = world
-        super.init(width: 200, minWidth: 140, range: 120...600)
+        margin = compact ? 0 : PetWorld.margin
+        if compact {
+            let n = CGFloat(max(1, count))
+            super.init(width: n * 40 + 6, range: (n * 36 + 6)...(n * 64 + 6))
+        } else {
+            super.init(width: 200, minWidth: 140, range: 120...600)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
     override var highlightsWhole: Bool { false }
 
-    private var playWidth: CGFloat { max(1, bounds.width - PetWorld.margin * 2) }
+    private var playWidth: CGFloat { max(1, bounds.width - margin * 2) }
 
-    func normalized(_ x: CGFloat) -> CGFloat { (x - PetWorld.margin) / playWidth }
-    private func px(_ x: CGFloat) -> CGFloat { PetWorld.margin + x * playWidth }
+    func normalized(_ x: CGFloat) -> CGFloat { (x - margin) / playWidth }
+    private func px(_ x: CGFloat) -> CGFloat { margin + x * playWidth }
 
     override func drawContent(_ b: NSRect) {
         let now = CACurrentMediaTime()
@@ -316,8 +347,8 @@ final class PetView: WidgetView {
                               centerY: 5, align: .center)
             }
         }
-        // Nama muncul sebentar setelah dielus.
-        for pet in world.pets where now < pet.nameUntil {
+        // Nama muncul sebentar setelah dielus (tidak di kotak kecil: tidak ada tempat).
+        for pet in world.pets where now < pet.nameUntil && !world.compact {
             let name = pet.config.name.isEmpty ? pet.config.species.title : pet.config.name
             let font = Theme.font(8.5, .bold)
             let w = Draw.width(name, font) + 8

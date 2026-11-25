@@ -520,6 +520,21 @@ private struct PetsPage: View {
                         .foregroundStyle(.secondary)
                 }
 
+                Section {
+                    Picker("Tampilan", selection: $store.petCompact) {
+                        Text("Area main lebar").tag(false)
+                        Text("Kotak kecil").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Ukuran")
+                } footer: {
+                    Text(store.petCompact
+                         ? "Kotak kecil: ±40 pt per peliharaan. Mereka duduk, tidur, dan joget di tempat tanpa jalan-jalan."
+                         : "Area main lebar: peliharaan jalan-jalan dan bisa dipanggil dengan mengetuk tempat kosong.")
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Kebiasaan") {
                     Toggle("Joget saat musik diputar", isOn: $store.petDance)
                     Toggle("Lebih sering tidur di malam hari (23.00–06.00)", isOn: $store.petNightSleep)

@@ -71,6 +71,22 @@ enum Snapshot {
         add(BarContainerView(leading: CloseView(), content: petView, width: barWidth), to: petCanvas, inset: inset)
         render(petCanvas, to: (path as NSString).deletingPathExtension + "-pets.png")
 
+        // Peliharaan di kotak kecil, di samping widget lain.
+        let compactCanvas = Canvas(frame: canvas.frame)
+        let compactWorld = PetWorld()
+        compactWorld.sync(PetConfig.defaults)
+        compactWorld.setCompact(true)
+        compactWorld.pets[0].set(.sit, now: petNow, for: 60)
+        compactWorld.pets[1].set(.sit, now: petNow, for: 60)
+        compactWorld.span = 80
+        let compactPets = PetView(world: compactWorld, compact: true, count: 2)
+        let compactClock = ClockView()
+        let compactControls = ControlsView(actions: [.builtin(.brightness), .builtin(.volume), .builtin(.screenshot)])
+        compactControls.states = demoStates
+        let compactStrip = DashboardStripView(widgets: [compactPets, compactClock, compactControls], mode: .packed)
+        add(BarContainerView(leading: CloseView(), content: compactStrip, width: barWidth), to: compactCanvas, inset: inset)
+        render(compactCanvas, to: (path as NSString).deletingPathExtension + "-pets-compact.png")
+
         // Isi penuh: lebih sedikit widget, sisa ruang dipakai untuk melebar (bukan celah kosong).
         let fillCanvas = Canvas(frame: canvas.frame)
         let fillClaude = ClaudeView()

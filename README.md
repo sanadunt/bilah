@@ -20,6 +20,10 @@ Dashboard Touch Bar untuk MacBook Pro. Tampil di semua aplikasi, bukan cuma saat
 
 Sampai 3 peliharaan, masing-masing anjing atau kucing dengan 4 pilihan warna dan nama sendiri (jendela Bilah › **Peliharaan**). Mereka jalan-jalan sendiri, tidur kalau lama tidak disapa atau sudah malam, dan joget kalau ada musik diputar. Area mainnya ikut lebar widget, jadi makin lebar di Atur tata letak, makin luas tempat mainnya.
 
+Mau hemat tempat? Pilih **Kotak kecil** di halaman Peliharaan: ±40 pt per peliharaan, mereka duduk berhadapan, tidur, dan joget di tempat tanpa jalan-jalan.
+
+![Peliharaan kotak kecil](docs/preview-pets-compact.png)
+
 ## Pintasan
 
 Tombol ⊞ di widget Pintasan cepat membuka panel selebar Touch Bar berisi semua tombol bawaan Mac, mirip Expanded Control Strip. Kalau tidak muat, geser panelnya.
