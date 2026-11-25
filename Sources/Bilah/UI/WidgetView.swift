@@ -22,7 +22,12 @@ class WidgetView: NSView {
     var highlightsWhole: Bool { true }
 
     var animating = false {
-        didSet { if animating != oldValue { Animator.shared.set(self, animating: animating) } }
+        didSet { if animating != oldValue { Animator.shared.set(self, animating: animating && !frozen) } }
+    }
+
+    /// Dibekukan (di kanvas Atur tata letak): tidak digambar ulang tiap frame animasi, dan lebarnya diatur manual.
+    var frozen = false {
+        didSet { if frozen != oldValue { Animator.shared.set(self, animating: animating && !frozen) } }
     }
 
     init(width: CGFloat, minWidth: CGFloat? = nil, range: ClosedRange<CGFloat>? = nil) {
@@ -57,7 +62,9 @@ class WidgetView: NSView {
             fixedWidth = defaultWidth
             minWidth = shrinkMin
         }
-        invalidateIntrinsicContentSize()
+        // Di kanvas Atur tata letak (frozen) frame diatur manual; invalidasi di sana memicu hitung ulang
+        // seluruh halaman SwiftUI di tiap gerakan saat lebar widget ditarik.
+        if !frozen { invalidateIntrinsicContentSize() }
     }
 
     func clampWidth(_ w: CGFloat) -> CGFloat { min(widthRange.upperBound, max(widthRange.lowerBound, w)) }

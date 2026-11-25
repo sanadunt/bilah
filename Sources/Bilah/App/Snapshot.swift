@@ -268,6 +268,74 @@ extension Snapshot {
     /// jendela, untuk 1/2/4/6 halaman × beberapa ukuran × semua halaman pengaturan (+ mode Atur tata letak).
     /// Gagal kalau split view lebih tinggi/lebar dari jendela atau ada baris sidebar di luar jendela
     /// (itulah gejala "menu kiri tidak bisa diklik").
+    /// Ukur beban mode Atur tata letak (offscreen): CPU saat diam 2 detik dan saat menyeret widget 150 langkah.
+    static func editBench() {
+        _ = NSApplication.shared
+        let suite = "bilah.editbench.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.set(true, forKey: "infoPageAdded")
+        let store = SettingsStore(defaults: defaults)
+        WidgetKind.allCases.forEach { store.setEnabled($0, true) }
+        let dashboard = DashboardController(settings: store)
+        let nav = Navigation(), editor = LayoutEditorState()
+        let window = MainWindowController.makeWindow(MainView(store: store, dashboard: dashboard, updater: Updater(),
+                                                               navigation: nav, editor: editor))
+        nav.page = .layout
+        editor.editing = true
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        func cpu() -> Double {
+            var u = rusage()
+            getrusage(RUSAGE_SELF, &u)
+            return Double(u.ru_utime.tv_sec + u.ru_stime.tv_sec) + Double(u.ru_utime.tv_usec + u.ru_stime.tv_usec) / 1e6
+        }
+        func find<T: NSView>(_ v: NSView, _ type: T.Type) -> T? {
+            if let t = v as? T { return t }
+            for s in v.subviews { if let t = find(s, type) { return t } }
+            return nil
+        }
+        guard let canvas = find(window.contentView!, LayoutEditCanvas.self) else { print("kanvas tidak ketemu"); return }
+
+        let idle0 = cpu()
+        for _ in 0..<40 { RunLoop.main.run(until: Date().addingTimeInterval(0.05)); window.displayIfNeeded() }
+        let idle = cpu() - idle0
+
+        func event(_ type: NSEvent.EventType, _ p: NSPoint) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: canvas.convert(p, to: nil), modifierFlags: [], timestamp: 0,
+                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+        let start = NSPoint(x: LayoutEditCanvas.start + 30, y: Theme.height / 2)
+        let drag0 = cpu()
+        canvas.mouseDown(with: event(.leftMouseDown, start))
+        for i in 1...(ProcessInfo.processInfo.environment["BENCH_STEPS"].flatMap { Int($0) } ?? 150) {
+            canvas.mouseDragged(with: event(.leftMouseDragged, NSPoint(x: start.x + CGFloat(i) * 3, y: start.y)))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.001))
+            window.displayIfNeeded()
+        }
+        let drag = cpu() - drag0
+        canvas.mouseUp(with: event(.leftMouseUp, NSPoint(x: start.x + 450, y: start.y)))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+
+        // Tarik lebar widget pertama yang bisa diubah ukurannya.
+        var resize = 0.0
+        if let w = canvas.subviews.compactMap({ $0 as? WidgetView }).filter({ $0.isResizable && $0.frame.minX >= LayoutEditCanvas.start })
+            .min(by: { $0.frame.minX < $1.frame.minX }) {
+            let edge = NSPoint(x: w.frame.maxX - 4, y: Theme.height / 2)
+            let r0 = cpu()
+            canvas.mouseDown(with: event(.leftMouseDown, edge))
+            for i in 1...100 {
+                canvas.mouseDragged(with: event(.leftMouseDragged, NSPoint(x: edge.x + CGFloat(i % 50) * 2, y: edge.y)))
+                RunLoop.main.run(until: Date().addingTimeInterval(0.001))
+                window.displayIfNeeded()
+            }
+            resize = cpu() - r0
+            FileHandle.standardError.write("lebar \(Int(w.frame.width)) pt, fixedWidth \(Int(w.fixedWidth))\n".data(using: .utf8)!)
+        }
+        print(String(format: "diam 2 dtk: %.0f ms CPU · seret: %.2f ms/langkah · tarik lebar: %.2f ms/langkah",
+                     idle * 1000, drag * 1000 / 150, resize * 1000 / 100))
+        defaults.removePersistentDomain(forName: suite)
+        exit(0)
+    }
+
     static func layoutCheck() -> Bool {
         _ = NSApplication.shared
         var failures = 0, checks = 0
@@ -276,7 +344,12 @@ extension Snapshot {
             let defaults = UserDefaults(suiteName: suite)!
             defaults.set(true, forKey: "infoPageAdded")
             let store = SettingsStore(defaults: defaults)
-            while store.pages.count < pageCount { store.addPage(named: "Halaman panjang \(store.pages.count + 1)") }
+            // Satu nama sangat panjang (100 karakter): nama halaman bebas diketik pengguna.
+            let longName = "Halaman kerja proyek panjang sekali dengan nama yang sangat panjang sekali lagi dan lagi dan lagi"
+            while store.pages.count < pageCount {
+                let n = store.pages.count + 1
+                store.addPage(named: n == 2 ? "\(n) \(longName)" : "Halaman panjang \(n)")
+            }
             store.currentPage = 0
             let dashboard = DashboardController(settings: store)
             let nav = Navigation(), editor = LayoutEditorState()

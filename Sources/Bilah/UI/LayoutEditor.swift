@@ -4,9 +4,19 @@ import Combine
 /// Status mode Atur tata letak, dibagi antara preview (AppKit) dan toolbar (SwiftUI).
 final class LayoutEditorState: ObservableObject {
     @Published var editing = false
-    /// Lebar isi (widget + jarak minimum) dan ruang yang tersedia untuk widget, dalam pt.
-    @Published var used: CGFloat = 0
-    @Published var available: CGFloat = 0
+    /// Terpisah supaya angka yang berubah saat menyeret hanya menggambar ulang meteran kapasitas.
+    let metrics = LayoutMetrics()
+}
+
+/// Lebar isi (widget + jarak minimum) dan ruang yang tersedia untuk widget, dalam pt.
+final class LayoutMetrics: ObservableObject {
+    @Published private(set) var used: CGFloat = 0
+    @Published private(set) var available: CGFloat = 0
+
+    func set(used: CGFloat, available: CGFloat) {
+        if used != self.used { self.used = used }
+        if available != self.available { self.available = available }
+    }
 }
 
 /// Kanvas edit: widget asli (data live) yang bisa diseret untuk menyusun, ditarik tepi kanannya untuk mengubah lebar,
@@ -30,16 +40,25 @@ final class LayoutEditCanvas: NSView {
     private var insertion: Int?
     private var resized: Set<WidgetKind> = []
     private var contentRight: CGFloat = 0
+    private var reported: (used: CGFloat, available: CGFloat)?
 
     var onCommit: (([WidgetKind], [WidgetKind: CGFloat]) -> Void)?
     var onRemove: ((WidgetKind) -> Void)?
     var onResetWidth: ((WidgetKind) -> Void)?
     /// Langsung dipanggil sekali saat dipasang, lalu tiap tata letak berubah.
     var onMetrics: ((_ used: CGFloat, _ available: CGFloat) -> Void)? {
-        didSet { reportMetrics() }
+        didSet { reported = nil; reportMetrics() }
     }
 
-    private func reportMetrics() { onMetrics?(contentRight - Self.start, barWidth - Self.start) }
+    /// Hanya kalau angkanya berubah, dan tidak selama menyeret: tiap perubahan teks meteran memicu tata letak ulang
+    /// halaman SwiftUI. Label lebar di bawah tiap widget sudah ikut berubah langsung; meteran menyusul saat dilepas.
+    private func reportMetrics() {
+        guard drag == nil, let onMetrics else { return }
+        let now = (used: contentRight - Self.start, available: barWidth - Self.start)
+        guard reported.map({ $0.used != now.used || $0.available != now.available }) ?? true else { return }
+        reported = now
+        onMetrics(now.used, now.available)
+    }
 
     init(items: [(kind: WidgetKind, view: WidgetView)], barWidth: CGFloat) {
         self.items = items
@@ -47,8 +66,13 @@ final class LayoutEditCanvas: NSView {
         super.init(frame: NSRect(x: 0, y: 0, width: barWidth, height: Theme.height + Self.labelHeight))
         close.frame = NSRect(x: 0, y: 0, width: close.fixedWidth, height: Theme.height)
         addSubview(close)
-        items.forEach { addSubview($0.view) }
+        // Widget di kanvas edit dibekukan: tanpa animasi 30 fps (peliharaan, equalizer, dll.) supaya menyeret tetap ringan.
+        items.forEach { $0.view.frozen = true; addSubview($0.view) }
+        // Frame diatur manual. Tanpa ini, tiap setFrame saat menyeret menandai constraint autoresizing kotor,
+        // dan NavigationSplitView menghitung ulang ukuran minimum seluruh halaman di tiap gerakan mouse.
+        subviews.forEach { $0.translatesAutoresizingMaskIntoConstraints = false }
         overlay.canvas = self
+        overlay.translatesAutoresizingMaskIntoConstraints = false
         addSubview(overlay)
         relayout(rescale: true)
     }
@@ -99,14 +123,17 @@ final class LayoutEditCanvas: NSView {
         if let d = dragged {
             if slot == insertion { x += width(d) + Self.gap }
             items[d].view.frame = NSRect(x: draggedX, y: 0, width: width(d), height: Theme.height)
-            addSubview(items[d].view, positioned: .below, relativeTo: overlay)
+            // Naikkan ke atas sekali saja saat mulai diseret, bukan di tiap gerakan mouse.
+            if subviews.count >= 2, subviews[subviews.count - 2] !== items[d].view {
+                addSubview(items[d].view, positioned: .below, relativeTo: overlay)
+            }
         }
         contentRight = x - Self.gap
         if rescale { rescaleToFit() }
         overlay.frame = bounds
         overlay.needsDisplay = true
         needsDisplay = true
-        window?.invalidateCursorRects(for: self)
+        if drag == nil { window?.invalidateCursorRects(for: self) }
         reportMetrics()
     }
 

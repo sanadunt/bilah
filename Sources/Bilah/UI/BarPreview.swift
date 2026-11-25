@@ -82,11 +82,9 @@ final class BarPreviewView: NSView {
             }
             canvas.onRemove = { settings.setEnabled($0, false) }
             canvas.onResetWidth = { settings.widgetWidths[$0.rawValue] = nil }
+            let metrics = editor.metrics
             canvas.onMetrics = { used, available in
-                DispatchQueue.main.async {
-                    editor.used = used
-                    editor.available = available
-                }
+                DispatchQueue.main.async { metrics.set(used: used, available: available) }
             }
             addSubview(canvas)
         } else {
@@ -138,7 +136,7 @@ struct LayoutToolbar: View {
         if editor.editing {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 14) {
-                    capacity
+                    CapacityMeter(metrics: editor.metrics, spacing: store.spacing)
                     Spacer()
                     Button("Selesai") { editor.editing = false }
                         .buttonStyle(.borderedProminent)
@@ -213,10 +211,16 @@ struct LayoutToolbar: View {
             .disabled(store.widgetWidths.isEmpty)
             .fixedSize()
     }
+}
 
-    private var capacity: some View {
-        let used = Int(editor.used.rounded())
-        let available = Int(editor.available.rounded())
+/// Meteran kapasitas: satu-satunya view yang ikut berubah saat lebar widget ditarik.
+private struct CapacityMeter: View {
+    @ObservedObject var metrics: LayoutMetrics
+    let spacing: SpacingMode
+
+    var body: some View {
+        let used = Int(metrics.used.rounded())
+        let available = Int(metrics.available.rounded())
         let over = used - available
         return HStack(spacing: 8) {
             Image(systemName: over > 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
@@ -224,7 +228,7 @@ struct LayoutToolbar: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Terpakai \(used) / \(available) pt").fontWeight(.medium).monospacedDigit()
                 Text(over > 0 ? "\(over) pt lebih, sisanya bisa digeser di Touch Bar"
-                     : store.spacing == .fill ? "Sisa \(-over) pt diisi otomatis" : "Sisa \(-over) pt")
+                     : spacing == .fill ? "Sisa \(-over) pt diisi otomatis" : "Sisa \(-over) pt")
                     .font(.caption)
                     .foregroundStyle(over > 0 ? .orange : .secondary)
             }

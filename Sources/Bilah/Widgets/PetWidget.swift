@@ -302,7 +302,7 @@ final class PetWidget: Widget {
         world.span = widest - (world.compact ? 0 : PetWorld.margin * 2)
         world.step(now: now, dt: dt, musicPlaying: music.info?.playing == true, dance: settings.petDance,
                    nightSleep: settings.petNightSleep)
-        views.forEach { $0.needsDisplay = true }
+        views.forEach { if !$0.frozen { $0.needsDisplay = true } }
     }
 }
 

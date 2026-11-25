@@ -139,7 +139,9 @@ struct MainView: View {
     @ObservedObject var dashboard: DashboardController
     @ObservedObject var updater: Updater
     @ObservedObject var navigation: Navigation
-    @ObservedObject var editor: LayoutEditorState
+    /// Sengaja tidak diobservasi: perubahan mode edit cukup menggambar ulang preview dan toolbar-nya,
+    /// bukan seluruh jendela (sidebar + form) — itu yang dulu bikin Atur tata letak terasa berat.
+    let editor: LayoutEditorState
 
     var body: some View {
         NavigationSplitView {
@@ -255,7 +257,7 @@ private struct PageScaffold<Content: View>: View {
 private struct LayoutPage: View {
     @ObservedObject var store: SettingsStore
     @ObservedObject var dashboard: DashboardController
-    @ObservedObject var editor: LayoutEditorState
+    let editor: LayoutEditorState
 
     var body: some View {
         VStack(spacing: 0) {
@@ -854,7 +856,9 @@ struct PageBar: View {
                 // (Segmented + fixedSize saja tumbuh ±110 pt per halaman dan bisa mendorong sidebar keluar jendela.)
                 ViewThatFits(in: .horizontal) {
                     pagePicker.pickerStyle(.segmented).fixedSize()
-                    pagePicker.pickerStyle(.menu).fixedSize()
+                    // Pilihan terakhir dipakai walau tidak muat, jadi harus bisa menyusut: nama halaman tidak dibatasi
+                    // panjangnya, dan fixedSize di sini dulu mendorong sidebar keluar jendela untuk nama ≥ 42 karakter.
+                    pagePicker.pickerStyle(.menu).frame(minWidth: 120, maxWidth: 240)
                 }
             }
             Menu {
